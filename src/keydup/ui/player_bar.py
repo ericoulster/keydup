@@ -10,11 +10,13 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSlider,
     QStyle,
+    QVBoxLayout,
     QWidget,
 )
 
 from keydup.domain import Track
 from keydup.notation import get_formatter, saved_notation
+from keydup.ui.waveform_widget import WaveformWidget
 
 
 def _fmt_ms(ms: int) -> str:
@@ -42,8 +44,7 @@ class PlayerBar(QWidget):
         self.stop_button.setIcon(style.standardIcon(QStyle.SP_MediaStop))
         self.stop_button.setFixedWidth(36)
 
-        self.seek = QSlider(Qt.Horizontal, self)
-        self.seek.setRange(0, 0)
+        self.waveform = WaveformWidget(self)
         self.time_label = QLabel("0:00 / 0:00", self)
         self.now_playing = QLabel("", self)
         self.now_playing.setMinimumWidth(220)
@@ -53,19 +54,26 @@ class PlayerBar(QWidget):
         self.volume.setValue(90)
         self.volume.setFixedWidth(90)
 
-        layout = QHBoxLayout(self)
+        transport = QHBoxLayout()
+        transport.addWidget(self.play_button)
+        transport.addWidget(self.stop_button)
+        transport.addWidget(self.now_playing)
+        transport.addStretch(1)
+        transport.addWidget(self.time_label)
+        transport.addWidget(QLabel("Vol", self))
+        transport.addWidget(self.volume)
+
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
-        layout.addWidget(self.play_button)
-        layout.addWidget(self.stop_button)
-        layout.addWidget(self.now_playing)
-        layout.addWidget(self.seek, 1)
-        layout.addWidget(self.time_label)
-        layout.addWidget(QLabel("Vol", self))
-        layout.addWidget(self.volume)
+        layout.setSpacing(4)
+        layout.addWidget(self.waveform)
+        layout.addLayout(transport)
 
         self.play_button.clicked.connect(self.toggle)
         self.stop_button.clicked.connect(self.player.stop)
-        self.seek.sliderMoved.connect(self.player.setPosition)
+        self.waveform.seek_fraction.connect(
+            lambda f: self.player.setPosition(int(f * self.player.duration()))
+        )
         self.volume.valueChanged.connect(lambda v: self.audio.setVolume(v / 100))
         self.player.positionChanged.connect(self._on_position)
         self.player.durationChanged.connect(self._on_duration)
@@ -97,14 +105,13 @@ class PlayerBar(QWidget):
     # -- slots -------------------------------------------------------------
 
     def _on_position(self, pos: int) -> None:
-        if not self.seek.isSliderDown():
-            self.seek.setValue(pos)
-        self.time_label.setText(
-            f"{_fmt_ms(pos)} / {_fmt_ms(self.player.duration())}"
-        )
+        duration = self.player.duration()
+        if duration > 0:
+            self.waveform.set_progress(pos / duration)
+        self.time_label.setText(f"{_fmt_ms(pos)} / {_fmt_ms(duration)}")
 
     def _on_duration(self, duration: int) -> None:
-        self.seek.setRange(0, duration)
+        pass  # waveform progress is fractional; nothing to resize
 
     def _on_state(self, state) -> None:
         icon = (

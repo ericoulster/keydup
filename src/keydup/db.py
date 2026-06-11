@@ -9,7 +9,7 @@ from pathlib import Path
 
 from keydup.domain import CURRENT_ANALYSIS_VERSION, Folder, Tag, Track, TrackStub
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE folders (
@@ -77,6 +77,15 @@ class Database:
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]
         if version < 1:
             self.conn.executescript(_SCHEMA)
+        if version < 2:
+            self.conn.executescript(
+                """CREATE TABLE IF NOT EXISTS waveforms (
+                       track_id INTEGER PRIMARY KEY
+                           REFERENCES tracks(id) ON DELETE CASCADE,
+                       peaks BLOB NOT NULL
+                   );"""
+            )
+        if version < SCHEMA_VERSION:
             self.conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             self.conn.commit()
 
@@ -291,6 +300,21 @@ class Database:
     def all_tracks(self) -> list[Track]:
         rows = self.conn.execute(self._TRACK_QUERY + " GROUP BY t.id ORDER BY t.id").fetchall()
         return [self._row_to_track(r) for r in rows]
+
+    # -- waveforms ----------------------------------------------------------
+
+    def save_waveform(self, track_id: int, peaks: bytes) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO waveforms (track_id, peaks) VALUES (?,?)",
+            (track_id, peaks),
+        )
+        self.conn.commit()
+
+    def load_waveform(self, track_id: int) -> bytes | None:
+        row = self.conn.execute(
+            "SELECT peaks FROM waveforms WHERE track_id=?", (track_id,)
+        ).fetchone()
+        return row["peaks"] if row else None
 
     # -- tags -------------------------------------------------------------
 
