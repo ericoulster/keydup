@@ -139,21 +139,36 @@ class TrackFilterProxy(QSortFilterProxyModel):
         self._bpm_range: tuple[int, int] | None = None
         self._tag_ids: frozenset[int] = frozenset()
 
+    # Qt 6.10 replaces invalidateFilter() with begin/endFilterChange()
+    def _begin(self) -> None:
+        if hasattr(self, "beginFilterChange"):
+            self.beginFilterChange()
+
+    def _end(self) -> None:
+        if hasattr(self, "endFilterChange"):
+            self.endFilterChange()
+        else:
+            self.invalidateFilter()
+
     def set_text(self, text: str) -> None:
+        self._begin()
         self._text = text.strip().lower()
-        self.invalidateFilter()
+        self._end()
 
     def set_keys(self, keys: frozenset[str]) -> None:
+        self._begin()
         self._keys = keys
-        self.invalidateFilter()
+        self._end()
 
     def set_bpm_range(self, lo: int | None, hi: int | None) -> None:
+        self._begin()
         self._bpm_range = (lo, hi) if lo is not None else None
-        self.invalidateFilter()
+        self._end()
 
     def set_tag_ids(self, tag_ids: frozenset[int]) -> None:
+        self._begin()
         self._tag_ids = tag_ids
-        self.invalidateFilter()
+        self._end()
 
     def filterAcceptsRow(self, source_row: int, source_parent) -> bool:
         track: Track = self.sourceModel().tracks[source_row]

@@ -6,7 +6,7 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, QThreadPool, Signal
 
 from keydup.db import Database
-from keydup.domain import Folder, Track, TrackStub
+from keydup.domain import Folder, Tag, Track, TrackStub
 from keydup.analysis.analyzer import AnalysisController, AnalysisResult
 from keydup.analysis.scanner import ScanWorker
 
@@ -22,6 +22,7 @@ class LibraryService(QObject):
     analysis_progress = Signal(int, int)
     analysis_finished = Signal()
     analysis_failed = Signal(str)
+    tags_changed = Signal()             # tag created/deleted
 
     def __init__(self, db: Database, parent: QObject | None = None,
                  auto_analyze: bool = True):
@@ -146,6 +147,29 @@ class LibraryService(QObject):
             self._analysis.wait(30_000)
             self._analysis = None
         self.pool.waitForDone(10_000)
+
+    # -- tags ----------------------------------------------------------------
+
+    def create_tag(self, name: str, kind: str) -> Tag:
+        tag = self.db.create_tag(name, kind)
+        self.tags_changed.emit()
+        return tag
+
+    def delete_tag(self, tag_id: int) -> None:
+        self.db.delete_tag(tag_id)
+        self.tags_changed.emit()
+        # assignments cascade away; refresh every row's tag display
+        self.tracks_upserted.emit(self.db.all_tracks())
+
+    def list_tags(self) -> list[Tag]:
+        return self.db.list_tags()
+
+    def set_track_tag(self, track_id: int, tag_id: int, assigned: bool) -> None:
+        if assigned:
+            track = self.db.assign_tag(track_id, tag_id)
+        else:
+            track = self.db.unassign_tag(track_id, tag_id)
+        self.tracks_upserted.emit([track])
 
     # -- queries -----------------------------------------------------------
 
