@@ -19,7 +19,7 @@ DEFAULT_NOTATION = "openkey"
 NOTATIONS = ("openkey", "camelot", "names", "custom")
 NOTATION_LABELS = {
     "openkey": "Open Key (1d-12m)",
-    "camelot": "Camelot (1A-12B)",
+    "camelot": "Wheel numbers (1A-12B)",
     "names": "Key names (F minor)",
     "custom": "Custom (notation.json)",
 }

@@ -48,7 +48,7 @@ Releases build from CI (`.github/workflows/build.yml`) on tag push
 
 Keys display in **Open Key** notation by default (1d-12d major,
 1m-12m minor - the open standard used by Beatport and Traktor).
-View > Key notation switches to Camelot-style numbers, classical key
+View > Key notation switches to 1A-12B wheel numbers, classical key
 names, or a custom mapping: picking Custom creates an editable
 `notation.json` next to the library database with one label per key.
 
