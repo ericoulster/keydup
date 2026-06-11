@@ -1,0 +1,33 @@
+[project]
+name = "keydup"
+version = "0.1.0"
+description = "key'd up - DJ library manager with key/BPM analysis, built on keypipe"
+requires-python = ">=3.12"
+dependencies = [
+    "keypipe[essentia]",
+    "pyside6>=6.8",
+    "mutagen>=1.47",
+    "platformdirs>=4",
+    "superqt>=0.7",
+]
+
+[project.gui-scripts]
+keydup = "keydup.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/keydup"]
+artifacts = ["*.qss", "*.svg", "*.png"]
+
+[tool.uv.sources]
+# Local path for development; CI swaps this for the GitHub URL.
+keypipe = { path = "../keypipe", editable = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-qt>=4.4",
+]
