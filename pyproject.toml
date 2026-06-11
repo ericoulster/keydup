@@ -28,6 +28,7 @@ keypipe = { path = "../keypipe", editable = true }
 
 [dependency-groups]
 dev = [
+    "pyinstaller>=6.11",
     "pytest>=8",
     "pytest-qt>=4.4",
 ]
