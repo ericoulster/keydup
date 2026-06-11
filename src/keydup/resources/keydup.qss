@@ -1,0 +1,59 @@
+/* key'd up - app stylesheet. Slider styling intentionally omitted
+   (superqt QRangeSlider paints itself). */
+
+QTableView {
+    gridline-color: #26272e;
+    selection-background-color: #3d2f8f;
+    alternate-background-color: #1c1d22;
+    border: none;
+}
+
+QHeaderView::section {
+    background: #26272e;
+    color: #b9bac2;
+    border: none;
+    border-right: 1px solid #1e1f24;
+    padding: 4px 8px;
+}
+
+QToolBar {
+    background: #1e1f24;
+    border-bottom: 1px solid #26272e;
+    spacing: 6px;
+    padding: 4px;
+}
+
+QLineEdit {
+    background: #17181c;
+    border: 1px solid #2e2f38;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+QLineEdit:focus {
+    border-color: #7c5cff;
+}
+
+QStatusBar {
+    background: #1e1f24;
+    border-top: 1px solid #26272e;
+}
+
+QScrollBar:vertical {
+    background: #17181c;
+    width: 10px;
+}
+
+QScrollBar::handle:vertical {
+    background: #34353e;
+    border-radius: 5px;
+    min-height: 24px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #44454f;
+}
+
+QScrollBar::add-line, QScrollBar::sub-line {
+    height: 0;
+}
