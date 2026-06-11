@@ -6,6 +6,7 @@ from __future__ import annotations
 from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
+    QDockWidget,
     QFileDialog,
     QLabel,
     QLineEdit,
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from keydup.library import LibraryService
+from keydup.ui.filter_bar import FilterBar
 from keydup.ui.track_table import COL_STATUS, TrackFilterProxy, TrackTableModel
 
 
@@ -39,6 +41,15 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setColumnWidth(COL_STATUS, 28)
         self.setCentralWidget(self.table)
+
+        self.filter_bar = FilterBar(self.proxy, self)
+        dock = QDockWidget("Filters", self)
+        dock.setObjectName("filters_dock")
+        dock.setWidget(self.filter_bar)
+        dock.setFeatures(
+            QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetClosable
+        )
+        self.addDockWidget(Qt.LeftDockWidgetArea, dock)
 
         self._build_toolbar()
         self._build_statusbar()
