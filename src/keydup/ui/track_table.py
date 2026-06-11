@@ -8,7 +8,9 @@ from PySide6.QtCore import (
     QModelIndex,
     QSortFilterProxyModel,
     Qt,
+    Signal,
 )
+from PySide6.QtWidgets import QAbstractItemView, QTableView
 
 from keydup.domain import Track
 from keydup.notation import get_formatter, saved_notation
@@ -165,6 +167,51 @@ class TrackTableModel(QAbstractTableModel):
 
     def track_at(self, row: int) -> Track:
         return self.tracks[row]
+
+    def flags(self, index):
+        base = super().flags(index)
+        if self.active_set_id is not None:
+            return base | Qt.ItemIsDragEnabled
+        return base
+
+
+class TrackTableView(QTableView):
+    """Table view that supports dragging rows to reorder the active set.
+    Emits the dragged proxy rows and the proxy row dropped onto (-1 for
+    'after the last row'); the window maps them back to set order."""
+
+    rows_dropped = Signal(list, int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._reorder_enabled = False
+
+    def set_reorder_enabled(self, enabled: bool) -> None:
+        self._reorder_enabled = enabled
+        self.setDragEnabled(enabled)
+        self.setAcceptDrops(enabled)
+        self.setDropIndicatorShown(enabled)
+        self.setDragDropMode(
+            QAbstractItemView.InternalMove if enabled else QAbstractItemView.NoDragDrop
+        )
+        self.setDragDropOverwriteMode(False)
+
+    def dragEnterEvent(self, event) -> None:
+        if self._reorder_enabled:
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event) -> None:
+        if self._reorder_enabled:
+            event.acceptProposedAction()
+
+    def dropEvent(self, event) -> None:
+        if not self._reorder_enabled:
+            return
+        rows = sorted({i.row() for i in self.selectionModel().selectedRows()})
+        target = self.indexAt(event.position().toPoint()).row()
+        if rows:
+            self.rows_dropped.emit(rows, target)
+        event.acceptProposedAction()
 
 
 class TrackFilterProxy(QSortFilterProxyModel):

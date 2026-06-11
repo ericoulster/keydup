@@ -26,6 +26,7 @@ class LibraryService(QObject):
     export_progress = Signal(int, int)
     export_finished = Signal(str)
     export_failed = Signal(str)
+    waveform_ready = Signal(int, object)  # track_id, np.float32 array | None
 
     def __init__(self, db: Database, parent: QObject | None = None,
                  auto_analyze: bool = True):
@@ -181,6 +182,17 @@ class LibraryService(QObject):
         if changed:
             self.tracks_upserted.emit(changed)
 
+    def reorder_set(self, tag_id: int, moved_ids: list[int], before_id: int | None) -> None:
+        """Move moved_ids (kept in their relative order) so they sit just
+        before before_id in the set order, or at the end when None."""
+        order = self.db.set_track_ids_ordered(tag_id)
+        moved = [i for i in order if i in set(moved_ids)]
+        rest = [i for i in order if i not in set(moved_ids)]
+        at = rest.index(before_id) if before_id in rest else len(rest)
+        changed = self.db.renumber_set(tag_id, rest[:at] + moved + rest[at:])
+        if changed:
+            self.tracks_upserted.emit(changed)
+
     def set_tracks_ordered(self, tag_id: int) -> list[Track]:
         return [self.db.get_track(i) for i in self.db.set_track_ids_ordered(tag_id)]
 
@@ -192,6 +204,30 @@ class LibraryService(QObject):
         worker.signals.finished.connect(self.export_finished)
         worker.signals.failed.connect(self.export_failed)
         self.pool.start(worker)
+
+    # -- waveforms ------------------------------------------------------------
+
+    def request_waveform(self, track: Track) -> None:
+        import numpy as np
+
+        cached = self.db.load_waveform(track.id)
+        if cached is not None:
+            self.waveform_ready.emit(
+                track.id, np.frombuffer(cached, dtype=np.float32)
+            )
+            return
+        from keydup.analysis.waveform import WaveformWorker
+
+        worker = WaveformWorker(track.id, track.path)
+        worker.signals.done.connect(self._on_waveform_done)
+        worker.signals.failed.connect(
+            lambda track_id, _msg: self.waveform_ready.emit(track_id, None)
+        )
+        self.pool.start(worker)
+
+    def _on_waveform_done(self, track_id: int, peaks) -> None:
+        self.db.save_waveform(track_id, peaks.tobytes())
+        self.waveform_ready.emit(track_id, peaks)
 
     # -- queries -----------------------------------------------------------
 

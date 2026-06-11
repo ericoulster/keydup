@@ -36,6 +36,7 @@ from keydup.ui.track_table import (
     COL_STATUS,
     TrackFilterProxy,
     TrackTableModel,
+    TrackTableView,
 )
 
 
@@ -49,15 +50,22 @@ class MainWindow(QMainWindow):
         self.proxy = TrackFilterProxy(self)
         self.proxy.setSourceModel(self.model)
 
-        self.table = QTableView(self)
+        self.table = TrackTableView(self)
         self.table.setModel(self.proxy)
         self.table.setSortingEnabled(True)
         self.table.setSelectionBehavior(QTableView.SelectRows)
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
         self.table.verticalHeader().setVisible(False)
-        self.table.horizontalHeader().setStretchLastSection(True)
+        header = self.table.horizontalHeader()
+        header.setStretchLastSection(True)
+        header.setSectionsMovable(True)  # drag headers to rearrange columns
         self.table.setColumnWidth(COL_STATUS, 28)
+        self.table.setColumnWidth(COL_POS, 36)
+        header_state = QSettings("keydup", "keydup").value("header_state")
+        if header_state is not None:
+            header.restoreState(header_state)
+        self.table.rows_dropped.connect(self._on_rows_dropped)
         self.table.doubleClicked.connect(self._play_index)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._table_menu)
@@ -207,13 +215,27 @@ class MainWindow(QMainWindow):
         )
         lib.export_finished.connect(self._set_idle)
         lib.export_failed.connect(lambda msg: self._set_idle(f"Export failed: {msg}"))
+        lib.waveform_ready.connect(self._on_waveform_ready)
 
     # -- behavior ----------------------------------------------------------
 
     def _on_active_set(self, tag_id) -> None:
         self.model.set_active_set(tag_id)
+        self.table.set_reorder_enabled(tag_id is not None)
         if tag_id is not None:
             self.table.sortByColumn(COL_POS, Qt.AscendingOrder)
+
+    def _on_rows_dropped(self, proxy_rows: list, target_row: int) -> None:
+        tag_id = self.model.active_set_id
+        if tag_id is None:
+            return
+        moved = [
+            self._track_for_proxy_row(self.proxy.index(r, 0)).id for r in proxy_rows
+        ]
+        before = None
+        if target_row >= 0:
+            before = self._track_for_proxy_row(self.proxy.index(target_row, 0)).id
+        self.library.reorder_set(tag_id, moved, before)
 
     def _track_for_proxy_row(self, proxy_index) -> Track:
         source = self.proxy.mapToSource(proxy_index)
@@ -225,6 +247,12 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"File missing: {track.path}", 5000)
             return
         self.player.play_track(track)
+        self.player.waveform.set_loading()
+        self.library.request_waveform(track)
+
+    def _on_waveform_ready(self, track_id: int, peaks) -> None:
+        if self.player.track is not None and self.player.track.id == track_id:
+            self.player.waveform.set_peaks(peaks)
 
     def _table_menu(self, pos) -> None:
         index = self.table.indexAt(pos)
@@ -328,6 +356,8 @@ class MainWindow(QMainWindow):
             self.resize(1100, 700)
 
     def closeEvent(self, event) -> None:
-        QSettings("keydup", "keydup").setValue("geometry", self.saveGeometry())
+        settings = QSettings("keydup", "keydup")
+        settings.setValue("geometry", self.saveGeometry())
+        settings.setValue("header_state", self.table.horizontalHeader().saveState())
         self.library.shutdown()
         super().closeEvent(event)
