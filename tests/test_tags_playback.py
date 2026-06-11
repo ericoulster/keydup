@@ -10,6 +10,7 @@ from keydup.db import Database
 from keydup.library import LibraryService
 from keydup.ui.main_window import MainWindow
 from keydup.ui.tag_panel import TagPanel
+from keydup.ui.track_table import COL_FILENAME
 
 
 @pytest.fixture
@@ -47,7 +48,7 @@ def test_tag_assign_and_filter(qtbot, lib_with_tracks):
     assert root.child(0).text(0) == "house"
     root.child(0).setCheckState(0, Qt.Checked)
     assert window.proxy.rowCount() == 1
-    assert window.proxy.index(0, 7).data() == "a.wav"
+    assert window.proxy.index(0, COL_FILENAME).data() == "a.wav"
 
     # unassign -> filtered out entirely
     library.set_track_tag(tracks[0].id, house.id, False)

@@ -20,8 +20,18 @@ STATUS_GLYPHS = {
     "missing": "✗",     # ✗
 }
 
-COLUMNS = ("", "Artist", "Title", "Key", "BPM", "Length", "Tags", "Filename")
-COL_STATUS, COL_ARTIST, COL_TITLE, COL_KEY, COL_BPM, COL_LENGTH, COL_TAGS, COL_FILENAME = range(8)
+COLUMNS = ("", "#", "Artist", "Title", "Key", "BPM", "Length", "Tags", "Filename")
+(
+    COL_STATUS,
+    COL_POS,
+    COL_ARTIST,
+    COL_TITLE,
+    COL_KEY,
+    COL_BPM,
+    COL_LENGTH,
+    COL_TAGS,
+    COL_FILENAME,
+) = range(9)
 
 
 def _fmt_duration(seconds: float | None) -> str:
@@ -36,6 +46,18 @@ class TrackTableModel(QAbstractTableModel):
         super().__init__(parent)
         self.tracks: list[Track] = []
         self._row_by_id: dict[int, int] = {}
+        # when viewing a single 'set' tag, the # column shows the track's
+        # position within that set
+        self.active_set_id: int | None = None
+
+    def set_active_set(self, tag_id: int | None) -> None:
+        if tag_id != self.active_set_id:
+            self.active_set_id = tag_id
+            if self.tracks:
+                self.dataChanged.emit(
+                    self.index(0, COL_POS),
+                    self.index(len(self.tracks) - 1, COL_POS),
+                )
 
     # -- Qt model API ------------------------------------------------------
 
@@ -63,14 +85,18 @@ class TrackTableModel(QAbstractTableModel):
             if col == COL_STATUS and track.error:
                 return track.error
             return track.path
-        if role == Qt.TextAlignmentRole and col in (COL_KEY, COL_BPM, COL_LENGTH):
+        if role == Qt.TextAlignmentRole and col in (COL_POS, COL_KEY, COL_BPM, COL_LENGTH):
             return int(Qt.AlignRight | Qt.AlignVCenter)
         return None
 
-    @staticmethod
-    def _display(track: Track, col: int):
+    def _display(self, track: Track, col: int):
         if col == COL_STATUS:
             return STATUS_GLYPHS.get(track.status, "")
+        if col == COL_POS:
+            if self.active_set_id is None:
+                return ""
+            position = track.tag_positions.get(self.active_set_id)
+            return str(position) if position else ""
         if col == COL_ARTIST:
             return track.artist or ""
         if col == COL_TITLE:
@@ -87,8 +113,11 @@ class TrackTableModel(QAbstractTableModel):
             return track.filename
         return ""
 
-    @staticmethod
-    def _sort_value(track: Track, col: int):
+    def _sort_value(self, track: Track, col: int):
+        if col == COL_POS:
+            if self.active_set_id is None:
+                return 0
+            return track.tag_positions.get(self.active_set_id) or 10**9
         if col == COL_KEY and track.key_camelot:
             # sort 1A,1B,2A... numerically around the wheel
             return int(track.key_camelot[:-1]) * 2 + (track.key_camelot[-1] == "B")
@@ -98,7 +127,7 @@ class TrackTableModel(QAbstractTableModel):
             return track.duration_s or 0.0
         if col == COL_STATUS:
             return track.status
-        return TrackTableModel._display(track, col).lower()
+        return self._display(track, col).lower()
 
     # -- mutation ----------------------------------------------------------
 
