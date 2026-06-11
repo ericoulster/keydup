@@ -11,6 +11,7 @@ from PySide6.QtCore import (
 )
 
 from keydup.domain import Track
+from keydup.notation import get_formatter, saved_notation
 
 STATUS_GLYPHS = {
     "pending": "…",     # …
@@ -49,6 +50,14 @@ class TrackTableModel(QAbstractTableModel):
         # when viewing a single 'set' tag, the # column shows the track's
         # position within that set
         self.active_set_id: int | None = None
+        self.key_formatter = get_formatter(saved_notation())
+
+    def set_key_formatter(self, formatter) -> None:
+        self.key_formatter = formatter
+        if self.tracks:
+            self.dataChanged.emit(
+                self.index(0, COL_KEY), self.index(len(self.tracks) - 1, COL_KEY)
+            )
 
     def set_active_set(self, tag_id: int | None) -> None:
         if tag_id != self.active_set_id:
@@ -102,7 +111,7 @@ class TrackTableModel(QAbstractTableModel):
         if col == COL_TITLE:
             return track.title or ""
         if col == COL_KEY:
-            return track.key_camelot or ""
+            return self.key_formatter(track.key_camelot) if track.key_camelot else ""
         if col == COL_BPM:
             return str(track.bpm) if track.bpm else ""
         if col == COL_LENGTH:

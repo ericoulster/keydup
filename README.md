@@ -1,9 +1,9 @@
 # key'd up
 
 DJ library manager built on [keypipe](https://github.com/ericoulster/keypipe):
-scan folders of music, detect key (Camelot) and BPM with keypipe's
+scan folders of music, detect key and BPM with keypipe's
 KeyNet + TempoCNN pipeline, tag tracks by genre or DJ set, and search by
-text, an interactive Camelot wheel (with harmonic matching), and BPM
+text, an interactive key wheel (with harmonic matching), and BPM
 range. Built-in playback and reveal-in-file-manager. Fully offline -
 everything lives in a local SQLite database; your audio files are never
 modified.
@@ -44,10 +44,18 @@ uv run pyinstaller packaging/keydup.spec --noconfirm
 Releases build from CI (`.github/workflows/build.yml`) on tag push
 (`v*`): Linux tar.gz + macOS .app zip.
 
+## Key notation
+
+Keys display in **Open Key** notation by default (1d-12d major,
+1m-12m minor - the open standard used by Beatport and Traktor).
+View > Key notation switches to Camelot-style numbers, classical key
+names, or a custom mapping: picking Custom creates an editable
+`notation.json` next to the library database with one label per key.
+
 ## How analysis works
 
 Detection is keypipe's, unchanged: KeyNet CNN over a CQT spectrogram
-for key (Camelot notation), TempoCNN plus onset-assisted correction for
+for key, TempoCNN plus onset-assisted correction for
 BPM. Results, confidences, and the backend used are stored per track;
 re-analysis is queued automatically when the file changes on disk or
 the analysis version is bumped. Files renamed outside the app (e.g. by
