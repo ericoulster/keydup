@@ -48,6 +48,8 @@ class Track:
     error: str | None = None
     tag_ids: frozenset[int] = frozenset()
     tag_names: tuple[str, ...] = ()
+    # position within each assigned tag (meaningful for 'set' tags)
+    tag_positions: dict[int, int] = field(default_factory=dict)
 
 
 @dataclass

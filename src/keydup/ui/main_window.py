@@ -29,7 +29,12 @@ from keydup.ui.filter_bar import FilterBar
 from keydup.ui.player_bar import PlayerBar
 from keydup.ui.reveal import reveal_in_file_manager
 from keydup.ui.tag_panel import TagPanel
-from keydup.ui.track_table import COL_STATUS, TrackFilterProxy, TrackTableModel
+from keydup.ui.track_table import (
+    COL_POS,
+    COL_STATUS,
+    TrackFilterProxy,
+    TrackTableModel,
+)
 
 
 class MainWindow(QMainWindow):
@@ -82,6 +87,7 @@ class MainWindow(QMainWindow):
 
         self.tag_panel = TagPanel(library, self)
         self.tag_panel.filter_changed.connect(self.proxy.set_tag_ids)
+        self.tag_panel.active_set_changed.connect(self._on_active_set)
         tag_dock = QDockWidget("Tags", self)
         tag_dock.setObjectName("tags_dock")
         tag_dock.setWidget(self.tag_panel)
@@ -166,8 +172,18 @@ class MainWindow(QMainWindow):
         lib.analysis_failed.connect(
             lambda msg: self._set_idle(f"Analysis unavailable: {msg}")
         )
+        lib.export_progress.connect(
+            lambda done, total: self.status_label.setText(f"Exporting… {done}/{total}")
+        )
+        lib.export_finished.connect(self._set_idle)
+        lib.export_failed.connect(lambda msg: self._set_idle(f"Export failed: {msg}"))
 
     # -- behavior ----------------------------------------------------------
+
+    def _on_active_set(self, tag_id) -> None:
+        self.model.set_active_set(tag_id)
+        if tag_id is not None:
+            self.table.sortByColumn(COL_POS, Qt.AscendingOrder)
 
     def _track_for_proxy_row(self, proxy_index) -> Track:
         source = self.proxy.mapToSource(proxy_index)
@@ -193,6 +209,12 @@ class MainWindow(QMainWindow):
         menu = QMenu(self)
         play = menu.addAction("Play")
         reveal = menu.addAction("Reveal in file manager")
+        move_up = move_down = None
+        active_set = self.model.active_set_id
+        if active_set is not None and active_set in track.tag_ids:
+            menu.addSeparator()
+            move_up = menu.addAction("Move up in set")
+            move_down = menu.addAction("Move down in set")
         menu.addSeparator()
         tags_menu = menu.addMenu("Tags")
         tag_actions = {}
@@ -216,6 +238,10 @@ class MainWindow(QMainWindow):
             self._play_index(index)
         elif chosen == reveal:
             reveal_in_file_manager(track.path)
+        elif move_up is not None and chosen == move_up:
+            self.library.move_in_set(active_set, track.id, -1)
+        elif move_down is not None and chosen == move_down:
+            self.library.move_in_set(active_set, track.id, +1)
         elif chosen == reanalyze:
             self.library.reanalyze([t.id for t in selected])
         elif chosen in (new_genre, new_set):

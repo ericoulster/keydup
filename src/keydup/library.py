@@ -23,6 +23,9 @@ class LibraryService(QObject):
     analysis_finished = Signal()
     analysis_failed = Signal(str)
     tags_changed = Signal()             # tag created/deleted
+    export_progress = Signal(int, int)
+    export_finished = Signal(str)
+    export_failed = Signal(str)
 
     def __init__(self, db: Database, parent: QObject | None = None,
                  auto_analyze: bool = True):
@@ -170,6 +173,25 @@ class LibraryService(QObject):
         else:
             track = self.db.unassign_tag(track_id, tag_id)
         self.tracks_upserted.emit([track])
+
+    # -- ordered sets ---------------------------------------------------------
+
+    def move_in_set(self, tag_id: int, track_id: int, delta: int) -> None:
+        changed = self.db.move_in_set(tag_id, track_id, delta)
+        if changed:
+            self.tracks_upserted.emit(changed)
+
+    def set_tracks_ordered(self, tag_id: int) -> list[Track]:
+        return [self.db.get_track(i) for i in self.db.set_track_ids_ordered(tag_id)]
+
+    def export_set(self, tag_id: int, dest_dir: str) -> None:
+        from keydup.export import SetExportWorker
+
+        worker = SetExportWorker(self.set_tracks_ordered(tag_id), dest_dir)
+        worker.signals.progress.connect(self.export_progress)
+        worker.signals.finished.connect(self.export_finished)
+        worker.signals.failed.connect(self.export_failed)
+        self.pool.start(worker)
 
     # -- queries -----------------------------------------------------------
 

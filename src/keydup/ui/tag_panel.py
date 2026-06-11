@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QFileDialog,
     QHBoxLayout,
     QInputDialog,
     QMenu,
@@ -20,10 +21,12 @@ from PySide6.QtWidgets import (
 from keydup.library import LibraryService
 
 KIND_LABELS = {"genre": "Genres", "set": "Sets"}
+KIND_ROLE = Qt.UserRole + 1
 
 
 class TagPanel(QWidget):
-    filter_changed = Signal(object)  # frozenset[int]
+    filter_changed = Signal(object)      # frozenset[int]
+    active_set_changed = Signal(object)  # tag id (int) | None
 
     def __init__(self, library: LibraryService, parent=None):
         super().__init__(parent)
@@ -65,6 +68,7 @@ class TagPanel(QWidget):
         for tag in self.library.list_tags():
             item = QTreeWidgetItem([tag.name])
             item.setData(0, Qt.UserRole, tag.id)
+            item.setData(0, KIND_ROLE, tag.kind)
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
             item.setCheckState(
                 0, Qt.Checked if tag.id in checked else Qt.Unchecked
@@ -74,18 +78,30 @@ class TagPanel(QWidget):
         self.tree.blockSignals(False)
         self._emit_filter()
 
-    def checked_tag_ids(self) -> frozenset[int]:
-        ids = set()
+    def _checked_items(self) -> list[QTreeWidgetItem]:
+        items = []
         for r in range(self.tree.topLevelItemCount()):
             root = self.tree.topLevelItem(r)
             for c in range(root.childCount()):
                 child = root.child(c)
                 if child.checkState(0) == Qt.Checked:
-                    ids.add(child.data(0, Qt.UserRole))
-        return frozenset(ids)
+                    items.append(child)
+        return items
+
+    def checked_tag_ids(self) -> frozenset[int]:
+        return frozenset(i.data(0, Qt.UserRole) for i in self._checked_items())
+
+    def active_set_id(self) -> int | None:
+        """The single checked tag, when it is a set - drives the ordered
+        # column and move up/down actions."""
+        checked = self._checked_items()
+        if len(checked) == 1 and checked[0].data(0, KIND_ROLE) == "set":
+            return checked[0].data(0, Qt.UserRole)
+        return None
 
     def _emit_filter(self, *_args) -> None:
         self.filter_changed.emit(self.checked_tag_ids())
+        self.active_set_changed.emit(self.active_set_id())
 
     def _new_tag(self, kind: str) -> None:
         name, ok = QInputDialog.getText(
@@ -99,7 +115,20 @@ class TagPanel(QWidget):
         item = self.tree.itemAt(pos)
         if item is None or item.data(0, Qt.UserRole) is None:
             return
+        tag_id = item.data(0, Qt.UserRole)
         menu = QMenu(self)
+        export = None
+        if item.data(0, KIND_ROLE) == "set":
+            export = menu.addAction(f"Export set '{item.text(0)}' to folder…")
         delete = menu.addAction(f"Delete tag '{item.text(0)}'")
-        if menu.exec(self.tree.viewport().mapToGlobal(pos)) == delete:
-            self.library.delete_tag(item.data(0, Qt.UserRole))
+        chosen = menu.exec(self.tree.viewport().mapToGlobal(pos))
+        if chosen is None:
+            return
+        if chosen == delete:
+            self.library.delete_tag(tag_id)
+        elif chosen == export:
+            dest = QFileDialog.getExistingDirectory(
+                self, f"Export '{item.text(0)}' into folder"
+            )
+            if dest:
+                self.library.export_set(tag_id, dest)

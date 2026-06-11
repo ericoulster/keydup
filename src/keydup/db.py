@@ -249,7 +249,7 @@ class Database:
 
     _TRACK_QUERY = """
         SELECT t.*,
-               COALESCE(GROUP_CONCAT(g.id), '') AS tag_ids,
+               COALESCE(GROUP_CONCAT(g.id || ':' || COALESCE(tt.position, 0)), '') AS tag_refs,
                COALESCE(GROUP_CONCAT(g.name, CHAR(31)), '') AS tag_names
         FROM tracks t
         LEFT JOIN track_tags tt ON tt.track_id = t.id
@@ -257,7 +257,15 @@ class Database:
     """
 
     def _row_to_track(self, row: sqlite3.Row) -> Track:
-        tag_ids = frozenset(int(x) for x in row["tag_ids"].split(",") if x)
+        tag_ids: set[int] = set()
+        tag_positions: dict[int, int] = {}
+        for ref in row["tag_refs"].split(","):
+            if not ref:
+                continue
+            tag_id, position = ref.split(":")
+            tag_ids.add(int(tag_id))
+            if int(position):
+                tag_positions[int(tag_id)] = int(position)
         tag_names = tuple(x for x in row["tag_names"].split(chr(31)) if x)
         return Track(
             id=row["id"], folder_id=row["folder_id"], path=row["path"],
@@ -268,7 +276,8 @@ class Database:
             bpm=row["bpm"], bpm_confidence=row["bpm_confidence"],
             bpm_source=row["bpm_source"], analysis_version=row["analysis_version"],
             analyzed_at=row["analyzed_at"], status=row["status"], error=row["error"],
-            tag_ids=tag_ids, tag_names=tag_names,
+            tag_ids=frozenset(tag_ids), tag_names=tag_names,
+            tag_positions=tag_positions,
         )
 
     def get_track(self, track_id: int) -> Track:
@@ -305,9 +314,12 @@ class Database:
         self.conn.commit()
 
     def assign_tag(self, track_id: int, tag_id: int) -> Track:
+        # assignment order is set order: append at the end
         self.conn.execute(
-            "INSERT OR IGNORE INTO track_tags (track_id, tag_id) VALUES (?,?)",
-            (track_id, tag_id),
+            """INSERT OR IGNORE INTO track_tags (track_id, tag_id, position)
+               VALUES (?, ?, (SELECT COALESCE(MAX(position), 0) + 1
+                              FROM track_tags WHERE tag_id = ?))""",
+            (track_id, tag_id, tag_id),
         )
         self.conn.commit()
         return self.get_track(track_id)
@@ -318,3 +330,33 @@ class Database:
         )
         self.conn.commit()
         return self.get_track(track_id)
+
+    # -- ordered sets -------------------------------------------------------
+
+    def set_track_ids_ordered(self, tag_id: int) -> list[int]:
+        rows = self.conn.execute(
+            """SELECT track_id FROM track_tags
+               WHERE tag_id = ? ORDER BY position, track_id""",
+            (tag_id,),
+        ).fetchall()
+        return [r["track_id"] for r in rows]
+
+    def renumber_set(self, tag_id: int, ordered_track_ids: list[int]) -> list[Track]:
+        """Rewrite positions 1..n in the given order; returns the tracks."""
+        self.conn.executemany(
+            "UPDATE track_tags SET position=? WHERE tag_id=? AND track_id=?",
+            [(i, tag_id, tid) for i, tid in enumerate(ordered_track_ids, start=1)],
+        )
+        self.conn.commit()
+        return [self.get_track(tid) for tid in ordered_track_ids]
+
+    def move_in_set(self, tag_id: int, track_id: int, delta: int) -> list[Track]:
+        """Move a track up (delta=-1) or down (+1) in a set's order.
+        Returns all tracks in the set (positions are renumbered)."""
+        order = self.set_track_ids_ordered(tag_id)
+        if track_id not in order:
+            return []
+        i = order.index(track_id)
+        j = max(0, min(len(order) - 1, i + delta))
+        order.insert(j, order.pop(i))
+        return self.renumber_set(tag_id, order)
