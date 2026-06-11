@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from keydup.domain import Track
+from keydup.notation import get_formatter, saved_notation
 
 
 def _fmt_ms(ms: int) -> str:
@@ -31,6 +32,7 @@ class PlayerBar(QWidget):
         self.player = QMediaPlayer(self)
         self.player.setAudioOutput(self.audio)
         self.track: Track | None = None
+        self.key_formatter = get_formatter(saved_notation())
 
         style = self.style()
         self.play_button = QPushButton(self)
@@ -80,8 +82,9 @@ class PlayerBar(QWidget):
         self.player.play()
         bits = [track.artist or "", track.title or track.filename]
         label = " - ".join(b for b in bits if b)
+        key = self.key_formatter(track.key_camelot) if track.key_camelot else None
         extras = " · ".join(
-            x for x in (track.key_camelot, f"{track.bpm}" if track.bpm else None) if x
+            x for x in (key, f"{track.bpm}" if track.bpm else None) if x
         )
         self.now_playing.setText(f"{label}   {extras}" if extras else label)
 

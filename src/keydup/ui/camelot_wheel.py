@@ -13,6 +13,8 @@ from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from keypipe.utils import camelot_to_key_name
 
+from keydup.notation import get_formatter, saved_notation
+
 WEDGE_SPAN = 30.0  # degrees
 
 
@@ -39,6 +41,11 @@ class CamelotWheel(QWidget):
         self._harmonic_preview: frozenset[str] = frozenset()
         self._hovered: str | None = None
         self._paths: dict[str, QPainterPath] = {}
+        self.key_formatter = get_formatter(saved_notation())
+
+    def set_key_formatter(self, formatter) -> None:
+        self.key_formatter = formatter
+        self.update()
 
     # -- public API ----------------------------------------------------------
 
@@ -131,7 +138,9 @@ class CamelotWheel(QWidget):
             rect = path.boundingRect()
             selected = key in self._selected
             painter.setPen(QColor("#ffffff") if selected else QColor("#d4d4dc"))
-            painter.drawText(self._label_rect(key), Qt.AlignCenter, key)
+            painter.drawText(
+                self._label_rect(key), Qt.AlignCenter, self.key_formatter(key)
+            )
 
         if self._selected:
             painter.setPen(QColor("#9a9aa5"))
@@ -139,7 +148,11 @@ class CamelotWheel(QWidget):
             small.setPointSizeF(max(7.0, min(self.width(), self.height()) / 30))
             painter.setFont(small)
             hub = QRectF(0, 0, self.width(), self.height())
-            painter.drawText(hub, Qt.AlignCenter, "\n".join(sorted(self._selected)[:4]))
+            painter.drawText(
+                hub,
+                Qt.AlignCenter,
+                "\n".join(self.key_formatter(k) for k in sorted(self._selected)[:4]),
+            )
 
     def _label_rect(self, key: str) -> QRectF:
         import math
@@ -181,8 +194,12 @@ class CamelotWheel(QWidget):
         if key != self._hovered:
             self._hovered = key
             if key:
-                name = camelot_to_key_name(key)
-                self.setToolTip(f"{key} - {name}" if name else key)
+                label = self.key_formatter(key)
+                try:
+                    name = camelot_to_key_name(key)
+                except Exception:
+                    name = None
+                self.setToolTip(f"{label} - {name}" if name and name != label else label)
             self.update()
 
     def leaveEvent(self, event) -> None:

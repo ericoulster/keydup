@@ -7,7 +7,9 @@ from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QAction
 import os
 
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QActionGroup, QKeySequence, QShortcut
+
+from keydup import notation
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -97,6 +99,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.LeftDockWidgetArea, tag_dock)
 
         self._build_toolbar()
+        self._build_menus()
         self._build_statusbar()
         self._connect_library()
         self._restore_geometry()
@@ -136,6 +139,33 @@ class MainWindow(QMainWindow):
         )
         self.search.textChanged.connect(lambda _: self._search_timer.start())
         bar.addWidget(self.search)
+
+    def _build_menus(self) -> None:
+        view = self.menuBar().addMenu("&View")
+        key_menu = view.addMenu("Key notation")
+        group = QActionGroup(self)
+        group.setExclusive(True)
+        current = notation.saved_notation()
+        for name in notation.NOTATIONS:
+            action = key_menu.addAction(notation.NOTATION_LABELS[name])
+            action.setCheckable(True)
+            action.setChecked(name == current)
+            action.setData(name)
+            group.addAction(action)
+        group.triggered.connect(self._on_notation_changed)
+
+    def _on_notation_changed(self, action) -> None:
+        name = action.data()
+        if name == "custom":
+            notation.ensure_custom_template()
+            self.statusBar().showMessage(
+                f"Custom labels: edit {notation.custom_mapping_path()}", 8000
+            )
+        notation.save_notation(name)
+        formatter = notation.get_formatter(name)
+        self.model.set_key_formatter(formatter)
+        self.filter_bar.wheel.set_key_formatter(formatter)
+        self.player.key_formatter = formatter
 
     def _build_statusbar(self) -> None:
         self.status_label = QLabel("", self)
