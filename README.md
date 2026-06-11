@@ -22,6 +22,43 @@ uv run keydup
 GPU (CUDA) is used automatically for key detection when available;
 everything also works CPU-only.
 
+## Using the app
+
+**Build a library.** Toolbar > Add Folder picks a music folder; files
+appear in the table within seconds (metadata pass), then key/BPM fill
+in as background analysis completes. Analysis resumes automatically if
+you close the app mid-run, and Rescan picks up new/changed files -
+renamed files keep their tags via a size+duration fingerprint match.
+
+**Find music.** The search box matches artist/title/filename. The
+Filters dock has the key wheel (click wedges to filter; multi-select
+works), a harmonic-matches toggle - the gear next to it configures
+which moves count, e.g. the diagonal and +7 energy-boost mixes - and a
+BPM range slider. Check tags in the Tags dock to filter by them. All
+filters stack.
+
+**Play.** Double-click a row (or press Space with the table focused).
+The waveform at the bottom shows progress; click or drag on it to
+seek. Right-click a row for Play / Reveal in file manager / Tags /
+Re-analyze.
+
+**Tags and sets.** Create genres and sets with the buttons in the Tags
+dock, assign via a row's right-click > Tags menu (works on
+multi-selection). Sets are ordered playlists: check exactly one set in
+the Tags dock and the table switches to its order (# column) - drag
+rows to rearrange, or use the context menu's Move up/down. Right-click
+a set > "Export set to folder" copies its files into a directory as
+"01 Track.mp3", "02 ..." so the order survives on USB sticks and CDJs;
+originals are never touched.
+
+**Display.** Drag column headers to rearrange the table. View > Key
+notation switches how keys are written (Open Key by default). Window
+layout, column order, and all settings persist between runs.
+
+Library data lives in `~/.local/share/keydup/library.db` (Linux),
+`~/Library/Application Support/keydup/` (macOS) - delete it to start
+fresh; your audio files are never modified.
+
 ## Platform notes
 
 - **Linux / macOS**: fully supported (BPM detection needs essentia,
