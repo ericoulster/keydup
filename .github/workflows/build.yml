@@ -25,7 +25,7 @@ jobs:
       # keypipe is a path dependency at ../keypipe (see [tool.uv.sources])
       - uses: actions/checkout@v4
         with:
-          repository: ericoulster/Keypipe
+          repository: ericoulster/keypipe
           path: keypipe
 
       - uses: astral-sh/setup-uv@v5

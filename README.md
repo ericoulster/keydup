@@ -1,6 +1,6 @@
 # key'd up
 
-DJ library manager built on [keypipe](https://github.com/ericoulster/Keypipe):
+DJ library manager built on [keypipe](https://github.com/ericoulster/keypipe):
 scan folders of music, detect key (Camelot) and BPM with keypipe's
 KeyNet + TempoCNN pipeline, tag tracks by genre or DJ set, and search by
 text, an interactive Camelot wheel (with harmonic matching), and BPM
