@@ -42,6 +42,9 @@ class CamelotWheel(QWidget):
         self._hovered: str | None = None
         self._paths: dict[str, QPainterPath] = {}
         self.key_formatter = get_formatter(saved_notation())
+        # keys that can't be toggled (e.g. the anchor in the harmonic
+        # rule dialog); painted with a highlight ring
+        self.locked: frozenset[str] = frozenset()
 
     def set_key_formatter(self, formatter) -> None:
         self.key_formatter = formatter
@@ -129,7 +132,10 @@ class CamelotWheel(QWidget):
         painter.setFont(font)
 
         for key, path in self._paths.items():
-            painter.setPen(QPen(bg, 2))
+            if key in self.locked:
+                painter.setPen(QPen(QColor("#ffffff"), 2))
+            else:
+                painter.setPen(QPen(bg, 2))
             painter.setBrush(self._wedge_color(key))
             painter.drawPath(path)
 
@@ -181,7 +187,7 @@ class CamelotWheel(QWidget):
             self.clear()
             return
         key = self._key_at(event.position())
-        if key is None:
+        if key is None or key in self.locked:
             return
         if key in self._selected:
             self._selected.discard(key)
