@@ -8,15 +8,19 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
+    QDialog,
+    QHBoxLayout,
     QLabel,
     QPushButton,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 from superqt import QLabeledRangeSlider
 
-from keydup.domain import expand_harmonic
+from keydup import harmonics
 from keydup.ui.camelot_wheel import CamelotWheel
+from keydup.ui.harmonic_dialog import HarmonicDialog
 from keydup.ui.track_table import TrackFilterProxy
 
 BPM_MIN, BPM_MAX = 55, 215
@@ -29,6 +33,10 @@ class FilterBar(QWidget):
 
         self.wheel = CamelotWheel(self)
         self.harmonic = QCheckBox("Include harmonic matches", self)
+        self.harmonic_config = QToolButton(self)
+        self.harmonic_config.setText("⚙")
+        self.harmonic_config.setToolTip("Configure which moves count as harmonic")
+        self._rules = harmonics.saved_rules()
         self.bpm = QLabeledRangeSlider(Qt.Horizontal, self)
         self.bpm.setRange(BPM_MIN, BPM_MAX)
         self.bpm.setValue((BPM_MIN, BPM_MAX))
@@ -37,7 +45,10 @@ class FilterBar(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.addWidget(self.wheel)
-        layout.addWidget(self.harmonic)
+        harmonic_row = QHBoxLayout()
+        harmonic_row.addWidget(self.harmonic, 1)
+        harmonic_row.addWidget(self.harmonic_config)
+        layout.addLayout(harmonic_row)
         layout.addWidget(QLabel("BPM range", self))
         layout.addWidget(self.bpm)
         layout.addWidget(self.clear_button)
@@ -45,13 +56,21 @@ class FilterBar(QWidget):
 
         self.wheel.selection_changed.connect(lambda _: self._apply_keys())
         self.harmonic.toggled.connect(lambda _: self._apply_keys())
+        self.harmonic_config.clicked.connect(self._configure_harmonics)
         self.bpm.valueChanged.connect(self._apply_bpm)
         self.clear_button.clicked.connect(self.clear_all)
+
+    def _configure_harmonics(self) -> None:
+        dialog = HarmonicDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            self._rules = dialog.rules()
+            harmonics.save_rules(self._rules)
+            self._apply_keys()
 
     def _apply_keys(self) -> None:
         selected = self.wheel.selected()
         if selected and self.harmonic.isChecked():
-            expanded = expand_harmonic(selected)
+            expanded = harmonics.expand(selected, self._rules)
             self.wheel.set_harmonic_preview(expanded - selected)
             self.proxy.set_keys(expanded)
         else:
