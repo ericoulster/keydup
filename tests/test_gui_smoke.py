@@ -21,7 +21,7 @@ def music_dir(tmp_path):
 
 def test_scan_populates_table(qtbot, tmp_path, music_dir):
     db = Database(tmp_path / "lib.db")
-    library = LibraryService(db)
+    library = LibraryService(db, auto_analyze=False)
     window = MainWindow(library)
     qtbot.addWidget(window)
 
@@ -34,7 +34,7 @@ def test_scan_populates_table(qtbot, tmp_path, music_dir):
     assert all(t.duration_s and abs(t.duration_s - 2.0) < 0.1 for t in window.model.tracks)
 
     # restart: persistence
-    window2 = MainWindow(LibraryService(db))
+    window2 = MainWindow(LibraryService(db, auto_analyze=False))
     qtbot.addWidget(window2)
     assert window2.model.rowCount() == 3
 
@@ -48,7 +48,7 @@ def test_scan_populates_table(qtbot, tmp_path, music_dir):
 
 def test_rescan_is_unchanged(qtbot, tmp_path, music_dir):
     db = Database(tmp_path / "lib.db")
-    library = LibraryService(db)
+    library = LibraryService(db, auto_analyze=False)
     with qtbot.waitSignal(library.scan_finished, timeout=15000):
         library.add_folder(str(music_dir))
 
