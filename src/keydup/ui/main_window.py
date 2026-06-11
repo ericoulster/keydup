@@ -46,6 +46,10 @@ class MainWindow(QMainWindow):
         self._restore_geometry()
 
         self.model.set_tracks(self.library.all_tracks())
+        self._update_count()
+        if self.library.auto_analyze:
+            # resume any analysis left over from a previous session
+            QTimer.singleShot(500, self.library.start_analysis)
 
     # -- chrome ------------------------------------------------------------
 
@@ -82,7 +86,7 @@ class MainWindow(QMainWindow):
         self.statusBar().addWidget(self.status_label, 1)
         self.cancel_button = QPushButton("Cancel", self)
         self.cancel_button.hide()
-        self.cancel_button.clicked.connect(self.library.cancel_scans)
+        self.cancel_button.clicked.connect(self._cancel_work)
         self.statusBar().addPermanentWidget(self.cancel_button)
         self._update_count()
 
@@ -100,8 +104,25 @@ class MainWindow(QMainWindow):
         lib.scan_failed.connect(
             lambda msg: self._set_idle(f"Scan failed: {msg}")
         )
+        lib.analysis_started.connect(
+            lambda n: self._set_busy(f"Analyzing {n} tracks…")
+        )
+        lib.analysis_progress.connect(
+            lambda done, total: self._set_busy(f"Analyzing… {done}/{total}")
+        )
+        lib.analysis_finished.connect(
+            lambda: self._set_idle(f"{self.model.rowCount()} tracks - analysis complete")
+        )
+        lib.analysis_failed.connect(
+            lambda msg: self._set_idle(f"Analysis unavailable: {msg}")
+        )
 
     # -- behavior ----------------------------------------------------------
+
+    def _cancel_work(self) -> None:
+        self.library.cancel_scans()
+        self.library.cancel_analysis()
+        self._set_idle("Cancelled")
 
     def _pick_folder(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "Add music folder")
@@ -141,5 +162,5 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         QSettings("keydup", "keydup").setValue("geometry", self.saveGeometry())
-        self.library.cancel_scans()
+        self.library.shutdown()
         super().closeEvent(event)
