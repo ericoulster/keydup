@@ -3,7 +3,6 @@
 # onedir on purpose: torch makes onefile startup unpacking painfully slow.
 
 import sys
-import sysconfig
 from pathlib import Path
 
 import keypipe
@@ -20,26 +19,12 @@ datas = [
     (str(ROOT / "src/keydup/resources"), "keydup/resources"),
 ]
 
-# essentia's TensorFlow shared libs live in a sibling dir reached via
-# rpath ../essentia_tensorflow.libs; keep that layout inside the bundle.
-site = Path(sysconfig.get_paths()["purelib"])
-tf_libs = site / "essentia_tensorflow.libs"
-if tf_libs.exists():
-    datas.append((str(tf_libs), "essentia_tensorflow.libs"))
-
 hiddenimports = ["keypipe.inference_onnx", "onnxruntime"]
-excludes_extra = []
-if sys.platform == "darwin":
-    # essentia's TensorFlow dylibs deadlock at dlopen inside macOS
-    # bundles (even loaded first); mac uses the ONNX backend instead
-    excludes_extra.append("essentia")
-else:
-    try:
-        import essentia  # noqa: F401
-
-        hiddenimports.append("essentia.standard")
-    except ImportError:
-        pass
+# bundles use the ONNX backend everywhere: it beat essentia on the
+# benchmark (12/13 vs 9/13), deadlocks nowhere (macOS TF dlopen), and
+# drops libtensorflow (~1GB) from the artifact. essentia stays a
+# dev-environment dependency for ground-truth comparison only.
+excludes_extra = ["essentia"]
 
 a = Analysis(
     [str(ROOT / "src/keydup/__main__.py")],
