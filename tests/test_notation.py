@@ -46,3 +46,11 @@ def test_model_uses_formatter(qtbot):
     assert model.index(0, COL_KEY).data() == "9m"
     model.set_key_formatter(get_formatter("camelot"))
     assert model.index(0, COL_KEY).data() == "4A"
+
+
+def test_about_text_credits_eric():
+    from keydup.ui.main_window import about_text
+
+    text = about_text()
+    assert "Eric Oulster" in text
+    assert "https://github.com/ericoulster" in text
