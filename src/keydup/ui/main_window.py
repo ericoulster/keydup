@@ -8,7 +8,9 @@ from PySide6.QtGui import QAction
 import os
 
 from PySide6.QtGui import QActionGroup, QKeySequence, QShortcut
+from PySide6.QtWidgets import QMessageBox
 
+import keydup
 from keydup import notation
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -38,6 +40,20 @@ from keydup.ui.track_table import (
     TrackTableModel,
     TrackTableView,
 )
+
+
+def about_text() -> str:
+    return (
+        f"<h3>key'd up {keydup.__version__}</h3>"
+        "<p>DJ library manager: key &amp; BPM detection, harmonic search, "
+        "tags and ordered sets.</p>"
+        "<p>Made by <b>Eric Oulster</b><br>"
+        '<a href="https://github.com/ericoulster">github.com/ericoulster</a><br>'
+        'Source: <a href="https://github.com/ericoulster/keydup">'
+        "github.com/ericoulster/keydup</a></p>"
+        "<p>Built on <a href='https://github.com/ericoulster/keypipe'>keypipe</a> "
+        "(KeyNet + TempoCNN detection).</p>"
+    )
 
 
 class MainWindow(QMainWindow):
@@ -161,6 +177,13 @@ class MainWindow(QMainWindow):
             action.setData(name)
             group.addAction(action)
         group.triggered.connect(self._on_notation_changed)
+
+        help_menu = self.menuBar().addMenu("&Help")
+        about = help_menu.addAction("About key'd up")
+        about.triggered.connect(self._show_about)
+
+    def _show_about(self) -> None:
+        QMessageBox.about(self, "About key'd up", about_text())
 
     def _on_notation_changed(self, action) -> None:
         name = action.data()
