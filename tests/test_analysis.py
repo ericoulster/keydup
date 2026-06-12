@@ -50,3 +50,14 @@ def test_analysis_end_to_end(qtbot, tmp_path, click_dir):
         library.reanalyze([some_id])
     assert db.get_track(some_id).bpm == 128
     db.close()
+
+
+@pytest.mark.slow
+def test_onnx_backend_matches_ground_truth(tmp_path):
+    from keydup.analysis.backends import OnnxBpmBackend
+
+    click_track(tmp_path / "c128.wav", 128)
+    click_track(tmp_path / "c174.wav", 174)
+    backend = OnnxBpmBackend()
+    assert backend.detect_with_confidence(str(tmp_path / "c128.wav"))[0] == 128
+    assert backend.detect_with_confidence(str(tmp_path / "c174.wav"))[0] == 174

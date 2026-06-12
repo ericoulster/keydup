@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "key'd up - DJ library manager with key/BPM analysis, built on keypipe"
 requires-python = ">=3.12"
 dependencies = [
-    "keypipe[essentia]",
+    "keypipe[onnx]",
+    # TF backend where it works; mac/win bundles use the ONNX backend
+    "keypipe[essentia] ; sys_platform != 'win32'",
     "pyside6>=6.8",
     "mutagen>=1.47",
     "platformdirs>=4",

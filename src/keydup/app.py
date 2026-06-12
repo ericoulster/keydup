@@ -4,16 +4,6 @@ from __future__ import annotations
 
 import sys
 
-# In frozen macOS bundles, essentia (and its TensorFlow dylibs) must
-# load before torch's - the reverse order deadlocks in dlopen. Import
-# chain below (library -> analyzer) pulls torch in at module scope, so
-# the preload has to happen here, first.
-if getattr(sys, "frozen", False) and sys.platform == "darwin":
-    try:
-        import essentia.standard  # noqa: F401
-    except ImportError:
-        pass
-
 from PySide6.QtWidgets import QApplication
 
 from keydup import paths
