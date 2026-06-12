@@ -6,6 +6,10 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# the Release step creates GitHub releases on tag pushes
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
