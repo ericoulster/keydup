@@ -61,10 +61,15 @@ jobs:
         working-directory: keydup
         # swap in the CPU wheel, then remove the CUDA libs the original
         # sync pulled in - PyInstaller bundles them otherwise (~2GB)
+        # --python .venv: setup-uv exports VIRTUAL_ENV pointing at a
+        # workspace venv, which uv pip would otherwise target instead of
+        # the project env that uv run builds from
         run: |
-          uv pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu --reinstall-package torch
-          uv pip freeze | grep -iE '^(nvidia-|triton)' | cut -d= -f1 | xargs -r uv pip uninstall
+          uv pip install --python .venv torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu --reinstall-package torch
+          uv pip freeze --python .venv | grep -iE '^(nvidia-|triton)' | cut -d= -f1 | xargs -r uv pip uninstall --python .venv
           uv cache clean
+          uv run --no-sync python -c "import torch; v = torch.__version__; assert '+cpu' in v, f'CUDA torch still present: {v}'"
+          uv run --no-sync python -c "import importlib.util as u; assert u.find_spec('nvidia') is None, 'nvidia libs still installed'" 
 
       - name: Tests (headless)
         working-directory: keydup
