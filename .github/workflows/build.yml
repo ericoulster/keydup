@@ -35,6 +35,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Free runner disk (Linux)
+        if: runner.os == 'Linux'
+        # the bundle + venv + wheel caches brush against the runner's
+        # free space; drop ~25GB of preinstalled toolchains we never use
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
       - name: Qt runtime libs (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -54,6 +60,7 @@ jobs:
         run: |
           uv pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu --reinstall-package torch
           uv pip freeze | grep -iE '^(nvidia-|triton)' | cut -d= -f1 | xargs -r uv pip uninstall
+          uv cache clean
 
       - name: Tests (headless)
         working-directory: keydup

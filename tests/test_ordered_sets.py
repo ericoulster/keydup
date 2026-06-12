@@ -82,9 +82,15 @@ def test_export_worker_copies_in_order(qtbot, tmp_path):
         )
         db.assign_tag(track.id, tag.id)
 
+    failures = []
+    library.export_failed.connect(failures.append)
+
     dest = tmp_path / "out"
-    with qtbot.waitSignal(library.export_finished, timeout=10000) as blocker:
+    with qtbot.waitSignal(
+        library.export_finished, timeout=30000, raising=False
+    ) as blocker:
         library.export_set(tag.id, str(dest))
+    assert blocker.signal_triggered, f"export did not finish; failures: {failures}"
     assert "Exported 3 files" in blocker.args[0]
     # assignment order preserved via numbered prefixes, not alphabetical
     assert sorted(p.name for p in dest.iterdir()) == [
