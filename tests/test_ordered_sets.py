@@ -10,7 +10,7 @@ from keydup.library import LibraryService
 
 def _stub(path, size=1000, duration=180.0):
     return TrackStub(
-        path=path, filename=path.rsplit("/", 1)[-1], artist="A", title="T",
+        path=path, filename=Path(path).name, artist="A", title="T",
         album=None, duration_s=duration, file_size=size, file_mtime=1.0,
     )
 

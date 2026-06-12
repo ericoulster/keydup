@@ -1,5 +1,7 @@
 """Waveform peaks/caching, set reordering, and view plumbing."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 import soundfile as sf
@@ -27,7 +29,7 @@ def test_compute_peaks_shape_and_dynamics(tmp_path):
 
 def _stub(path, size=1000, duration=10.0):
     return TrackStub(
-        path=str(path), filename=str(path).rsplit("/", 1)[-1], artist=None,
+        path=str(path), filename=Path(path).name, artist=None,
         title=None, album=None, duration_s=duration, file_size=size, file_mtime=1.0,
     )
 
