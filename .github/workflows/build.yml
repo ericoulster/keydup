@@ -71,11 +71,11 @@ jobs:
         timeout-minutes: 30
         env:
           QT_QPA_PLATFORM: offscreen
-        run: uv run pytest tests -q
+        run: uv run --no-sync pytest tests -q
 
       - name: Build bundle
         working-directory: keydup
-        run: uv run pyinstaller packaging/keydup.spec --noconfirm
+        run: uv run --no-sync pyinstaller packaging/keydup.spec --noconfirm
 
       - name: Self-test built bundle
         if: runner.os != 'Windows'
