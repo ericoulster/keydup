@@ -27,13 +27,19 @@ tf_libs = site / "essentia_tensorflow.libs"
 if tf_libs.exists():
     datas.append((str(tf_libs), "essentia_tensorflow.libs"))
 
-hiddenimports = []
-try:
-    import essentia  # noqa: F401
+hiddenimports = ["keypipe.inference_onnx", "onnxruntime"]
+excludes_extra = []
+if sys.platform == "darwin":
+    # essentia's TensorFlow dylibs deadlock at dlopen inside macOS
+    # bundles (even loaded first); mac uses the ONNX backend instead
+    excludes_extra.append("essentia")
+else:
+    try:
+        import essentia  # noqa: F401
 
-    hiddenimports.append("essentia.standard")
-except ImportError:
-    pass
+        hiddenimports.append("essentia.standard")
+    except ImportError:
+        pass
 
 a = Analysis(
     [str(ROOT / "src/keydup/__main__.py")],
@@ -48,7 +54,7 @@ a = Analysis(
         "tkinter",
         "PyQt5",
         "PyQt6",
-    ],
+    ] + excludes_extra,
     noarchive=False,
 )
 
