@@ -43,13 +43,16 @@ class AnalysisController(QThread):
 
     def run(self) -> None:
         try:
-            from keypipe.inference import KeyDetector
-
+            # essentia/TF must load before torch's world in macOS bundles
+            # (reverse order deadlocks dlopen); keep this construction first
             from keydup.analysis.backends import select_bpm_backend
+
+            bpm_backend = select_bpm_backend()
+
+            from keypipe.inference import KeyDetector
 
             device = "cuda" if torch.cuda.is_available() else "cpu"
             key_detector = KeyDetector(keynet_model_path(), device=device)
-            bpm_backend = select_bpm_backend()
         except Exception as exc:
             self.failed.emit(str(exc))
             return
