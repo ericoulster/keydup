@@ -69,8 +69,23 @@ exe = EXE(
     console=False,
 )
 
+exes = [exe]
+if sys.platform == "win32":
+    # console twin for CI self-test and terminal use: windowed exes
+    # swallow stdout and surface errors as dialogs on Windows
+    exes.append(
+        EXE(
+            pyz,
+            a.scripts,
+            [],
+            exclude_binaries=True,
+            name="keydup-cli",
+            console=True,
+        )
+    )
+
 coll = COLLECT(
-    exe,
+    *exes,
     a.binaries,
     a.datas,
     name="keydup",

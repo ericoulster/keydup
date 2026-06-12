@@ -93,7 +93,11 @@ names, or a custom mapping: picking Custom creates an editable
 
 Detection is keypipe's, unchanged: KeyNet CNN over a CQT spectrogram
 for key, TempoCNN plus onset-assisted correction for
-BPM. Results, confidences, and the backend used are stored per track;
+BPM. The TempoCNN weights (deepsquare-k16, Schreiber & Mueller) come
+from the [Essentia models](https://essentia.upf.edu/models.html)
+collection (MTG-UPF) and are licensed CC BY-NC-SA 4.0 - keydup is free
+and non-commercial; commercial use of the models would need a separate
+license from MTG. Results, confidences, and the backend used are stored per track;
 re-analysis is queued automatically when the file changes on disk or
 the analysis version is bumped. Files renamed outside the app (e.g. by
 the keypipe CLI's filename tagging) are re-matched by size + duration

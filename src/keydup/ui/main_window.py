@@ -53,6 +53,10 @@ def about_text() -> str:
         "github.com/ericoulster/keydup</a></p>"
         "<p>Built on <a href='https://github.com/ericoulster/keypipe'>keypipe</a> "
         "(KeyNet + TempoCNN detection).</p>"
+        "<p style='font-size: small'>Tempo model: TempoCNN (Schreiber &amp; "
+        "M&uuml;ller), weights from the "
+        "<a href='https://essentia.upf.edu/models.html'>Essentia models</a> "
+        "collection (MTG-UPF), CC BY-NC-SA 4.0.</p>"
     )
 
 

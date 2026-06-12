@@ -40,7 +40,8 @@ def test_analysis_end_to_end(qtbot, tmp_path, click_dir):
     assert tracks["click128.wav"].bpm == 128
     assert tracks["click174.wav"].bpm == 174
     assert all(t.key_camelot for t in tracks.values())
-    assert all(t.bpm_source == "essentia" for t in tracks.values())
+    # essentia where its wheels exist, the ONNX backend on Windows
+    assert all(t.bpm_source in ("essentia", "tempocnn-onnx") for t in tracks.values())
     assert all(t.analyzed_at for t in tracks.values())
 
     # nothing left pending; re-analyze queues it again
