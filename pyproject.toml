@@ -34,3 +34,6 @@ dev = [
     "pytest>=8",
     "pytest-qt>=4.4",
 ]
+
+[tool.pytest.ini_options]
+markers = ["slow: runs real model inference"]
