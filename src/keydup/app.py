@@ -22,6 +22,7 @@ def self_test() -> int:
 
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     QApplication(sys.argv)
+    print("self-test: qt up", flush=True)
 
     import numpy as np
     import soundfile as sf
@@ -31,7 +32,9 @@ def self_test() -> int:
     from keydup.analysis.backends import select_bpm_backend
 
     key_detector = KeyDetector(paths.keynet_model_path(), device="cpu")
+    print("self-test: key model loaded", flush=True)
     backend = select_bpm_backend()
+    print(f"self-test: bpm backend ready ({backend.name})", flush=True)
 
     with tempfile.TemporaryDirectory() as td:
         Database(Path(td) / "selftest.db").close()
@@ -46,7 +49,9 @@ def self_test() -> int:
         sf.write(wav, samples, sr)
 
         key = key_detector.detect(wav)
+        print(f"self-test: key inference done ({key})", flush=True)
         detected_bpm = backend.detect_with_confidence(wav)[0]
+        print(f"self-test: bpm inference done ({detected_bpm})", flush=True)
         assert key, "key detection returned nothing"
         assert abs(detected_bpm - bpm) <= 2, f"BPM {detected_bpm} != {bpm}"
 
