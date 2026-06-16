@@ -89,6 +89,14 @@ def self_test() -> int:
 def main() -> int:
     if "--self-test" in sys.argv:
         return self_test()
+
+    # keep the terminal clean; output is viewable in-app (View > Show Log)
+    from keydup.logcapture import LogBuffer, install_log_capture, quiet_native_logs
+
+    quiet_native_logs()
+    log_buffer = LogBuffer()
+    install_log_capture(log_buffer, paths.log_path())
+
     app = QApplication(sys.argv)
     app.setApplicationName("key'd up")
     app.setOrganizationName("keydup")
@@ -97,7 +105,7 @@ def main() -> int:
 
     db = Database(paths.db_path())
     library = LibraryService(db)
-    window = MainWindow(library)
+    window = MainWindow(library, log_buffer=log_buffer)
     window.show()
 
     code = app.exec()

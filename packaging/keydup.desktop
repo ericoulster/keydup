@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=key'd up
+GenericName=DJ Library Manager
+Comment=Key/BPM detection, harmonic search, tags and ordered sets
+Exec=keydup
+Icon=keydup
+Terminal=false
+Categories=AudioVideo;Audio;Music;

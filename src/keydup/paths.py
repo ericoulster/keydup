@@ -20,6 +20,10 @@ def db_path() -> Path:
     return data_dir() / "library.db"
 
 
+def log_path() -> Path:
+    return data_dir() / "keydup.log"
+
+
 def resources_dir() -> Path:
     # In a PyInstaller bundle resources are collected under _MEIPASS.
     meipass = getattr(sys, "_MEIPASS", None)

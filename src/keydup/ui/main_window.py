@@ -63,9 +63,13 @@ def about_text() -> str:
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, library: LibraryService):
+    def __init__(self, library: LibraryService, log_buffer=None):
         super().__init__()
         self.library = library
+        from keydup.logcapture import LogBuffer
+
+        self._log_buffer = log_buffer if log_buffer is not None else LogBuffer()
+        self._log_window = None
         self.setWindowTitle("key'd up")
 
         self.model = TrackTableModel(self)
@@ -188,12 +192,29 @@ class MainWindow(QMainWindow):
             group.addAction(action)
         group.triggered.connect(self._on_notation_changed)
 
+        view.addSeparator()
+        self.show_log_action = view.addAction("Show log")
+        self.show_log_action.setCheckable(True)
+        self.show_log_action.toggled.connect(self._toggle_log)
+
         help_menu = self.menuBar().addMenu("&Help")
         about = help_menu.addAction("About key'd up")
         about.triggered.connect(self._show_about)
 
     def _show_about(self) -> None:
         QMessageBox.about(self, "About key'd up", about_text())
+
+    def _toggle_log(self, show: bool) -> None:
+        if self._log_window is None:
+            from keydup.ui.log_window import LogWindow
+
+            self._log_window = LogWindow(self._log_buffer, self)
+            self._log_window.closed.connect(
+                lambda: self.show_log_action.setChecked(False)
+            )
+        self._log_window.setVisible(show)
+        if show:
+            self._log_window.raise_()
 
     def _on_notation_changed(self, action) -> None:
         name = action.data()

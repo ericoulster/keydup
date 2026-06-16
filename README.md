@@ -58,6 +58,10 @@ originals are never touched.
 notation switches how keys are written (Open Key by default). Window
 layout, column order, and all settings persist between runs.
 
+**Logs.** The app runs quietly - engine output goes to a log instead of
+the terminal. View > Show Log opens a live viewer; the same output is
+written to `keydup.log` in the data dir for post-mortems.
+
 Library data lives in `~/.local/share/keydup/library.db` (Linux),
 `~/Library/Application Support/keydup/` (macOS) - delete it to start
 fresh; your audio files are never modified.
