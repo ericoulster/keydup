@@ -44,7 +44,14 @@ def test_tag_assign_and_filter(qtbot, lib_with_tracks):
 
     # checking a tag in the panel filters the table
     panel: TagPanel = window.tag_panel
-    root = panel.tree.topLevelItem(0)  # Genres
+
+    def group(label):
+        for i in range(panel.tree.topLevelItemCount()):
+            if panel.tree.topLevelItem(i).text(0) == label:
+                return panel.tree.topLevelItem(i)
+        raise AssertionError(f"no {label} group")
+
+    root = group("Genres")
     assert root.child(0).text(0) == "house"
     root.child(0).setCheckState(0, Qt.Checked)
     assert window.proxy.rowCount() == 1
@@ -60,7 +67,7 @@ def test_tag_assign_and_filter(qtbot, lib_with_tracks):
 
     # delete tag refreshes panel
     library.delete_tag(house.id)
-    assert panel.tree.topLevelItem(0).childCount() == 0
+    assert group("Genres").childCount() == 0
     library.db.close()
 
 

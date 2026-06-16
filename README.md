@@ -24,18 +24,21 @@ everything also works CPU-only.
 
 ## Using the app
 
-**Build a library.** Toolbar > Add Folder picks a music folder; files
-appear in the table within seconds (metadata pass), then key/BPM fill
-in as background analysis completes. Analysis resumes automatically if
-you close the app mid-run, and Rescan picks up new/changed files -
-renamed files keep their tags via a size+duration fingerprint match.
+**Build a library.** Toolbar > Add Folder picks a music folder; a
+prompt then offers to tag every track in it as a genre or a set (named
+after the folder by default). Files appear in the table within seconds
+(metadata pass), then key/BPM fill in as background analysis completes.
+Analysis resumes automatically if you close the app mid-run, and Rescan
+picks up new/changed files - renamed files keep their tags via a
+size+duration fingerprint match.
 
 **Find music.** The search box matches artist/title/filename. The
 Filters dock has the key wheel (click wedges to filter; multi-select
 works), a harmonic-matches toggle - the gear next to it configures
 which moves count, e.g. the diagonal and +7 energy-boost mixes - and a
-BPM range slider. Check tags in the Tags dock to filter by them. All
-filters stack.
+BPM range slider. Check tags in the Tags dock to filter by them, or the
+pinned "New this session" row to show only tracks added since launch
+(that marker clears when you close the app). All filters stack.
 
 **Play.** Double-click a row (or press Space with the table focused).
 The waveform at the bottom shows progress; click or drag on it to

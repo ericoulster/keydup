@@ -53,6 +53,9 @@ class TrackTableModel(QAbstractTableModel):
         # position within that set
         self.active_set_id: int | None = None
         self.key_formatter = get_formatter(saved_notation())
+        # shared reference to LibraryService.session_new_ids (tracks added
+        # this run); shown as a "New" label and filterable
+        self.session_new_ids: set[int] = set()
 
     def set_key_formatter(self, formatter) -> None:
         self.key_formatter = formatter
@@ -119,7 +122,10 @@ class TrackTableModel(QAbstractTableModel):
         if col == COL_LENGTH:
             return _fmt_duration(track.duration_s)
         if col == COL_TAGS:
-            return ", ".join(track.tag_names)
+            names = track.tag_names
+            if track.id in self.session_new_ids:
+                names = ("New",) + names
+            return ", ".join(names)
         if col == COL_FILENAME:
             return track.filename
         return ""
@@ -223,6 +229,7 @@ class TrackFilterProxy(QSortFilterProxyModel):
         self._keys: frozenset[str] = frozenset()
         self._bpm_range: tuple[int, int] | None = None
         self._tag_ids: frozenset[int] = frozenset()
+        self._session_new_only = False
 
     # Qt 6.10 replaces invalidateFilter() with begin/endFilterChange()
     def _begin(self) -> None:
@@ -255,6 +262,11 @@ class TrackFilterProxy(QSortFilterProxyModel):
         self._tag_ids = tag_ids
         self._end()
 
+    def set_session_new_only(self, enabled: bool) -> None:
+        self._begin()
+        self._session_new_only = enabled
+        self._end()
+
     def filterAcceptsRow(self, source_row: int, source_parent) -> bool:
         track: Track = self.sourceModel().tracks[source_row]
         if self._text:
@@ -270,5 +282,7 @@ class TrackFilterProxy(QSortFilterProxyModel):
             if track.bpm is None or not (lo <= track.bpm <= hi):
                 return False
         if self._tag_ids and not (self._tag_ids & track.tag_ids):
+            return False
+        if self._session_new_only and track.id not in self.sourceModel().session_new_ids:
             return False
         return True

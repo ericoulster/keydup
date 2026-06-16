@@ -199,6 +199,14 @@ class Database:
         self.conn.commit()
         return self.get_track(row["id"])
 
+    def folder_track_ids(self, folder_id: int) -> list[int]:
+        """Track ids in a folder, path-ordered (set order on auto-tag)."""
+        rows = self.conn.execute(
+            "SELECT id FROM tracks WHERE folder_id=? AND status != 'missing' ORDER BY path",
+            (folder_id,),
+        ).fetchall()
+        return [r["id"] for r in rows]
+
     def mark_missing(self, folder_id: int, present_paths: set[str]) -> list[Track]:
         rows = self.conn.execute(
             "SELECT id, path FROM tracks WHERE folder_id = ? AND status != 'missing'",

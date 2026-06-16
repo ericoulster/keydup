@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QMessageBox
 import keydup
 from keydup import notation
 from PySide6.QtWidgets import (
+    QDialog,
     QDockWidget,
     QFileDialog,
     QInputDialog,
@@ -29,6 +30,7 @@ from PySide6.QtWidgets import (
 
 from keydup.domain import Track
 from keydup.library import LibraryService
+from keydup.ui.add_folder_dialog import AddFolderDialog
 from keydup.ui.filter_bar import FilterBar
 from keydup.ui.player_bar import PlayerBar
 from keydup.ui.reveal import reveal_in_file_manager
@@ -67,6 +69,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("key'd up")
 
         self.model = TrackTableModel(self)
+        # share the live set so the model's "New" label and the proxy's
+        # session filter track exactly what the library marked this run
+        self.model.session_new_ids = library.session_new_ids
         self.proxy = TrackFilterProxy(self)
         self.proxy.setSourceModel(self.model)
 
@@ -118,6 +123,7 @@ class MainWindow(QMainWindow):
         self.tag_panel = TagPanel(library, self)
         self.tag_panel.filter_changed.connect(self.proxy.set_tag_ids)
         self.tag_panel.active_set_changed.connect(self._on_active_set)
+        self.tag_panel.session_filter_changed.connect(self.proxy.set_session_new_only)
         tag_dock = QDockWidget("Tags", self)
         tag_dock.setObjectName("tags_dock")
         tag_dock.setWidget(self.tag_panel)
@@ -348,11 +354,15 @@ class MainWindow(QMainWindow):
 
     def _pick_folder(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "Add music folder")
-        if path:
-            self.library.add_folder(path)
+        if not path:
+            return
+        dialog = AddFolderDialog(path, self)
+        if dialog.exec() == QDialog.Accepted:
+            self.library.add_folder(path, dialog.auto_tag())
 
     def _on_tracks_changed(self, tracks: list) -> None:
         self.model.upsert_tracks(tracks)
+        self.tag_panel.set_session_count(len(self.library.session_new_ids))
         self._update_count()
 
     def _on_scan_finished(self, message: str) -> None:
