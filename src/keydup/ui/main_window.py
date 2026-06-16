@@ -71,6 +71,7 @@ class MainWindow(QMainWindow):
         self._log_buffer = log_buffer if log_buffer is not None else LogBuffer()
         self._log_window = None
         self.setWindowTitle("key'd up")
+        self.setAcceptDrops(True)  # drop audio files/folders to import
 
         self.model = TrackTableModel(self)
         # share the live set so the model's "New" label and the proxy's
@@ -380,6 +381,42 @@ class MainWindow(QMainWindow):
         dialog = AddFolderDialog(path, self)
         if dialog.exec() == QDialog.Accepted:
             self.library.add_folder(path, dialog.auto_tag())
+
+    # -- drag & drop import --------------------------------------------------
+
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event) -> None:
+        paths = [u.toLocalFile() for u in event.mimeData().urls() if u.toLocalFile()]
+        if paths:
+            self.import_paths(paths)
+            event.acceptProposedAction()
+
+    def import_paths(self, paths: list) -> None:
+        from pathlib import Path
+
+        from keypipe.utils import AUDIO_EXTENSIONS
+
+        dirs = [p for p in paths if Path(p).is_dir()]
+        files = [p for p in paths
+                 if Path(p).is_file() and Path(p).suffix.lower() in AUDIO_EXTENSIONS]
+        for d in dirs:
+            self.library.add_folder(d)
+        if files:
+            self.library.add_files(files)
+        n = len(dirs) + len(files)
+        if n:
+            self.statusBar().showMessage(
+                f"Importing {len(files)} file(s), {len(dirs)} folder(s)…", 4000
+            )
+        elif paths:
+            self.statusBar().showMessage("No audio files in the drop", 4000)
 
     def _on_tracks_changed(self, tracks: list) -> None:
         self.model.upsert_tracks(tracks)

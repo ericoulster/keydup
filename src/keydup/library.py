@@ -69,6 +69,37 @@ class LibraryService(QObject):
         for folder in self.db.list_folders():
             self.scan_folder(folder)
 
+    def add_files(self, paths: list[str]) -> list[Track]:
+        """Add individual audio files (e.g. dropped from a file manager).
+        Their parent directories are registered as folders so the rows
+        have a home and a later Rescan can pick up siblings."""
+        from pathlib import Path
+
+        from keydup.analysis.scanner import read_stub
+
+        changed: list[Track] = []
+        by_parent: dict[str, list[Path]] = {}
+        for p in paths:
+            path = Path(p)
+            by_parent.setdefault(str(path.parent), []).append(path)
+        for parent, files in by_parent.items():
+            folder = self.db.add_folder(parent)
+            for fp in files:
+                try:
+                    stub = read_stub(fp)
+                except OSError:
+                    continue
+                track, change = self.db.upsert_scanned(folder.id, stub)
+                if change == "new":
+                    self.session_new_ids.add(track.id)
+                if change != "unchanged":
+                    changed.append(track)
+        if changed:
+            self.tracks_upserted.emit(changed)
+        if self.auto_analyze:
+            self.start_analysis()
+        return changed
+
     def cancel_scans(self) -> None:
         for worker in self._active_scans.values():
             worker.cancel.set()

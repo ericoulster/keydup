@@ -14,9 +14,9 @@ SAMPLE_RATE = 8000
 
 
 def compute_peaks(path: str, bins: int = BINS) -> np.ndarray:
-    import librosa
+    from keypipe.utils import load_audio_mono
 
-    samples, _sr = librosa.load(path, sr=SAMPLE_RATE, mono=True)
+    samples = load_audio_mono(path, SAMPLE_RATE)
     if len(samples) == 0:
         return np.zeros(bins, dtype=np.float32)
     usable = len(samples) - (len(samples) % bins)
