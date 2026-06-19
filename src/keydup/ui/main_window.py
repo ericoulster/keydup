@@ -229,6 +229,7 @@ class MainWindow(QMainWindow):
         self.model.set_key_formatter(formatter)
         self.filter_bar.wheel.set_key_formatter(formatter)
         self.player.key_formatter = formatter
+        self.player.key_timeline.set_key_formatter(formatter)
 
     def _build_statusbar(self) -> None:
         self.status_label = QLabel("", self)
@@ -304,6 +305,13 @@ class MainWindow(QMainWindow):
         self.player.play_track(track)
         self.player.waveform.set_loading()
         self.library.request_waveform(track)
+        segments = self.library.key_segments(track.id)
+        if len(segments) > 1:
+            self.player.key_timeline.set_segments(segments, track.duration_s)
+            self.player.key_timeline.show()
+        else:
+            self.player.key_timeline.clear()
+            self.player.key_timeline.hide()
 
     def _on_waveform_ready(self, track_id: int, peaks) -> None:
         if self.player.track is not None and self.player.track.id == track_id:

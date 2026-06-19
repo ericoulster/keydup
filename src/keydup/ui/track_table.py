@@ -10,10 +10,13 @@ from PySide6.QtCore import (
     Qt,
     Signal,
 )
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QAbstractItemView, QTableView
 
-from keydup.domain import Track
+from keydup.domain import KEY_CONF_THRESHOLD, Track
 from keydup.notation import get_formatter, saved_notation
+
+LOW_CONF_COLOR = QColor("#e0a030")  # amber: low-confidence / likely modulating
 
 STATUS_GLYPHS = {
     "pending": "…",     # …
@@ -98,10 +101,30 @@ class TrackTableModel(QAbstractTableModel):
         if role == Qt.ToolTipRole:
             if col == COL_STATUS and track.error:
                 return track.error
+            if col == COL_KEY and track.key_camelot and track.key_confidence is not None:
+                return self._key_tooltip(track)
             return track.path
+        if role == Qt.ForegroundRole and col == COL_KEY and self._key_is_low_conf(track):
+            return LOW_CONF_COLOR
         if role == Qt.TextAlignmentRole and col in (COL_POS, COL_KEY, COL_BPM, COL_LENGTH):
             return int(Qt.AlignRight | Qt.AlignVCenter)
         return None
+
+    @staticmethod
+    def _key_is_low_conf(track: Track) -> bool:
+        return (
+            track.key_camelot is not None
+            and track.key_confidence is not None
+            and track.key_confidence < KEY_CONF_THRESHOLD
+        )
+
+    def _key_tooltip(self, track: Track) -> str:
+        bits = [f"{track.key_confidence:.0%} confidence"]
+        if track.key_secondary:
+            bits.append(f"also detected {self.key_formatter(track.key_secondary)}")
+        if self._key_is_low_conf(track):
+            bits.append("low confidence - may modulate")
+        return " · ".join(bits)
 
     def _display(self, track: Track, col: int):
         if col == COL_STATUS:
@@ -116,7 +139,12 @@ class TrackTableModel(QAbstractTableModel):
         if col == COL_TITLE:
             return track.title or ""
         if col == COL_KEY:
-            return self.key_formatter(track.key_camelot) if track.key_camelot else ""
+            if not track.key_camelot:
+                return ""
+            text = self.key_formatter(track.key_camelot)
+            if track.key_secondary:
+                text += f" (+{self.key_formatter(track.key_secondary)})"
+            return text
         if col == COL_BPM:
             return str(track.bpm) if track.bpm else ""
         if col == COL_LENGTH:

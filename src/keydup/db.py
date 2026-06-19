@@ -9,7 +9,7 @@ from pathlib import Path
 
 from keydup.domain import CURRENT_ANALYSIS_VERSION, Folder, Tag, Track, TrackStub
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA = """
 CREATE TABLE folders (
@@ -85,6 +85,22 @@ class Database:
                        peaks BLOB NOT NULL
                    );"""
             )
+        if version < 3:
+            self.conn.executescript(
+                """CREATE TABLE IF NOT EXISTS track_keys (
+                       track_id INTEGER NOT NULL
+                           REFERENCES tracks(id) ON DELETE CASCADE,
+                       seq INTEGER NOT NULL,
+                       start_s REAL NOT NULL,
+                       end_s REAL NOT NULL,
+                       key_camelot TEXT NOT NULL,
+                       confidence REAL,
+                       PRIMARY KEY (track_id, seq)
+                   );"""
+            )
+            cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(tracks)")}
+            if "key_secondary" not in cols:
+                self.conn.execute("ALTER TABLE tracks ADD COLUMN key_secondary TEXT")
         if version < SCHEMA_VERSION:
             self.conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             self.conn.commit()
@@ -290,6 +306,7 @@ class Database:
             album=row["album"], duration_s=row["duration_s"],
             file_size=row["file_size"], file_mtime=row["file_mtime"],
             key_camelot=row["key_camelot"], key_confidence=row["key_confidence"],
+            key_secondary=row["key_secondary"],
             bpm=row["bpm"], bpm_confidence=row["bpm_confidence"],
             bpm_source=row["bpm_source"], analysis_version=row["analysis_version"],
             analyzed_at=row["analyzed_at"], status=row["status"], error=row["error"],
@@ -323,6 +340,46 @@ class Database:
             "SELECT peaks FROM waveforms WHERE track_id=?", (track_id,)
         ).fetchone()
         return row["peaks"] if row else None
+
+    # -- key segments -------------------------------------------------------
+
+    def save_key_segments(self, track_id: int, segments: list) -> Track:
+        """Replace a track's key segments and recompute its secondary key
+        (the longest segment whose key differs from the primary)."""
+        self.conn.execute("DELETE FROM track_keys WHERE track_id=?", (track_id,))
+        self.conn.executemany(
+            """INSERT INTO track_keys (track_id, seq, start_s, end_s, key_camelot, confidence)
+               VALUES (?,?,?,?,?,?)""",
+            [(track_id, i, s["start_s"], s["end_s"], s["key"], s.get("confidence"))
+             for i, s in enumerate(segments)],
+        )
+        primary = self.conn.execute(
+            "SELECT key_camelot FROM tracks WHERE id=?", (track_id,)
+        ).fetchone()["key_camelot"]
+        duration_by_key: dict[str, float] = {}
+        for s in segments:
+            if s["key"] != primary:
+                duration_by_key[s["key"]] = (
+                    duration_by_key.get(s["key"], 0.0) + (s["end_s"] - s["start_s"])
+                )
+        secondary = max(duration_by_key, key=duration_by_key.get) if duration_by_key else None
+        self.conn.execute(
+            "UPDATE tracks SET key_secondary=? WHERE id=?", (secondary, track_id)
+        )
+        self.conn.commit()
+        return self.get_track(track_id)
+
+    def load_key_segments(self, track_id: int) -> list:
+        rows = self.conn.execute(
+            """SELECT start_s, end_s, key_camelot, confidence FROM track_keys
+               WHERE track_id=? ORDER BY seq""",
+            (track_id,),
+        ).fetchall()
+        return [
+            {"start_s": r["start_s"], "end_s": r["end_s"],
+             "key": r["key_camelot"], "confidence": r["confidence"]}
+            for r in rows
+        ]
 
     # -- tags -------------------------------------------------------------
 

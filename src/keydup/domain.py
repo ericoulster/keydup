@@ -8,6 +8,10 @@ from dataclasses import dataclass, field
 # version are re-queued for analysis on the next rescan.
 CURRENT_ANALYSIS_VERSION = 1
 
+# Below this key-detection confidence a track is likely modulating or
+# ambiguous; it triggers the windowed key-segment pass and gets flagged.
+KEY_CONF_THRESHOLD = 0.6
+
 TRACK_STATUSES = ("pending", "analyzing", "done", "error", "missing")
 
 
@@ -39,6 +43,7 @@ class Track:
     file_mtime: float = 0.0
     key_camelot: str | None = None
     key_confidence: float | None = None
+    key_secondary: str | None = None  # most prominent other key, if it modulates
     bpm: int | None = None
     bpm_confidence: float | None = None
     bpm_source: str | None = None

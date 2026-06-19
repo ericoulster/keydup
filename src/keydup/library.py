@@ -188,7 +188,13 @@ class LibraryService(QObject):
                 result.bpm_confidence,
                 result.bpm_source,
             )
+            if result.key_segments:
+                # save_analysis set the primary key; this derives secondary
+                track = self.db.save_key_segments(result.track_id, result.key_segments)
         self.tracks_upserted.emit([track])
+
+    def key_segments(self, track_id: int) -> list:
+        return self.db.load_key_segments(track_id)
 
     def _on_analysis_finished(self) -> None:
         if self._analysis is not None:

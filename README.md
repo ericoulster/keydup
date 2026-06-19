@@ -45,6 +45,12 @@ The waveform at the bottom shows progress; click or drag on it to
 seek. Right-click a row for Play / Reveal in file manager / Tags /
 Re-analyze.
 
+**Key changes.** Most tracks have one key. When key detection is
+low-confidence (a likely modulation or ambiguous track) the Key cell
+turns amber, and a windowed pass maps the key over time: the secondary
+key shows in the Key column as "10B (+10A)", and playing the track
+reveals a colored key-timeline strip under the waveform (click to seek).
+
 **Tags and sets.** Create genres and sets with the buttons in the Tags
 dock, assign via a row's right-click > Tags menu (works on
 multi-selection). Sets are ordered playlists: check exactly one set in

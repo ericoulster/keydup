@@ -13,6 +13,7 @@ from dataclasses import dataclass
 import torch
 from PySide6.QtCore import QThread, Signal
 
+from keydup.domain import KEY_CONF_THRESHOLD
 from keydup.paths import keynet_model_path
 
 WORKERS = 4
@@ -26,6 +27,7 @@ class AnalysisResult:
     bpm: int | None = None
     bpm_confidence: float | None = None
     bpm_source: str | None = None
+    key_segments: list | None = None  # set when the track likely modulates
     error: str | None = None
 
 
@@ -63,6 +65,12 @@ class AnalysisController(QThread):
             try:
                 key, key_conf = key_detector.detect_with_confidence(path)
                 bpm, bpm_conf = bpm_backend.detect_with_confidence(path)
+                segments = None
+                # low confidence => likely modulating; map the key timeline
+                if float(key_conf) < KEY_CONF_THRESHOLD:
+                    segs = key_detector.detect_segments(path)
+                    if len({s["key"] for s in segs}) > 1:  # only store real changes
+                        segments = segs
                 return AnalysisResult(
                     track_id,
                     key_camelot=key,
@@ -70,6 +78,7 @@ class AnalysisController(QThread):
                     bpm=int(bpm),
                     bpm_confidence=float(bpm_conf),
                     bpm_source=bpm_backend.name,
+                    key_segments=segments,
                 )
             except Exception as exc:
                 return AnalysisResult(track_id, error=str(exc))

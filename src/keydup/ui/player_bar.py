@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from keydup.domain import Track
 from keydup.notation import get_formatter, saved_notation
+from keydup.ui.key_timeline import KeyTimeline
 from keydup.ui.waveform_widget import WaveformWidget
 
 
@@ -45,6 +46,8 @@ class PlayerBar(QWidget):
         self.stop_button.setFixedWidth(36)
 
         self.waveform = WaveformWidget(self)
+        self.key_timeline = KeyTimeline(self)
+        self.key_timeline.hide()  # only shown for modulating tracks
         self.time_label = QLabel("0:00 / 0:00", self)
         self.now_playing = QLabel("", self)
         self.now_playing.setMinimumWidth(220)
@@ -67,13 +70,16 @@ class PlayerBar(QWidget):
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(4)
         layout.addWidget(self.waveform)
+        layout.addWidget(self.key_timeline)
         layout.addLayout(transport)
+
+        def seek_to(fraction: float) -> None:
+            self.player.setPosition(int(fraction * self.player.duration()))
 
         self.play_button.clicked.connect(self.toggle)
         self.stop_button.clicked.connect(self.player.stop)
-        self.waveform.seek_fraction.connect(
-            lambda f: self.player.setPosition(int(f * self.player.duration()))
-        )
+        self.waveform.seek_fraction.connect(seek_to)
+        self.key_timeline.seek_fraction.connect(seek_to)
         self.volume.valueChanged.connect(lambda v: self.audio.setVolume(v / 100))
         self.player.positionChanged.connect(self._on_position)
         self.player.durationChanged.connect(self._on_duration)
