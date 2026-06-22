@@ -272,6 +272,12 @@ class MainWindow(QMainWindow):
         lib.export_finished.connect(self._set_idle)
         lib.export_failed.connect(lambda msg: self._set_idle(f"Export failed: {msg}"))
         lib.waveform_ready.connect(self._on_waveform_ready)
+        lib.key_changes_finished.connect(
+            lambda: self.statusBar().showMessage("Key-change detection complete", 4000)
+        )
+        lib.key_changes_failed.connect(
+            lambda msg: self.statusBar().showMessage(f"Key detection failed: {msg}", 5000)
+        )
 
     # -- behavior ----------------------------------------------------------
 
@@ -348,6 +354,10 @@ class MainWindow(QMainWindow):
         new_genre = tags_menu.addAction("New genre…")
         new_set = tags_menu.addAction("New set…")
         menu.addSeparator()
+        detect_keys = menu.addAction(
+            f"Detect key changes ({len(selected)})" if len(selected) > 1
+            else "Detect key changes"
+        )
         reanalyze = menu.addAction(
             f"Re-analyze ({len(selected)})" if len(selected) > 1 else "Re-analyze"
         )
@@ -357,6 +367,11 @@ class MainWindow(QMainWindow):
             return
         if chosen == play:
             self._play_index(index)
+        elif chosen == detect_keys:
+            self.library.detect_key_changes([t.id for t in selected])
+            self.statusBar().showMessage(
+                f"Detecting key changes in {len(selected)} track(s)…", 4000
+            )
         elif chosen == reveal:
             reveal_in_file_manager(track.path)
         elif move_up is not None and chosen == move_up:
@@ -430,6 +445,16 @@ class MainWindow(QMainWindow):
         self.model.upsert_tracks(tracks)
         self.tag_panel.set_session_count(len(self.library.session_new_ids))
         self._update_count()
+        # if the now-playing track just got key-change detection, refresh its strip
+        playing = self.player.track
+        if playing is not None and any(t.id == playing.id for t in tracks):
+            segments = self.library.key_segments(playing.id)
+            if len(segments) > 1:
+                self.player.key_timeline.set_segments(segments, playing.duration_s)
+                self.player.key_timeline.show()
+            else:
+                self.player.key_timeline.clear()
+                self.player.key_timeline.hide()
 
     def _on_scan_finished(self, message: str) -> None:
         self._set_idle(message)

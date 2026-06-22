@@ -369,6 +369,12 @@ class Database:
         self.conn.commit()
         return self.get_track(track_id)
 
+    def clear_key_segments(self, track_id: int) -> Track:
+        self.conn.execute("DELETE FROM track_keys WHERE track_id=?", (track_id,))
+        self.conn.execute("UPDATE tracks SET key_secondary=NULL WHERE id=?", (track_id,))
+        self.conn.commit()
+        return self.get_track(track_id)
+
     def load_key_segments(self, track_id: int) -> list:
         rows = self.conn.execute(
             """SELECT start_s, end_s, key_camelot, confidence FROM track_keys

@@ -23,6 +23,9 @@ class LibraryService(QObject):
     analysis_finished = Signal()
     analysis_failed = Signal(str)
     tags_changed = Signal()             # tag created/deleted
+    key_changes_started = Signal(int)
+    key_changes_finished = Signal()
+    key_changes_failed = Signal(str)
     export_progress = Signal(int, int)
     export_finished = Signal(str)
     export_failed = Signal(str)
@@ -188,13 +191,34 @@ class LibraryService(QObject):
                 result.bpm_confidence,
                 result.bpm_source,
             )
-            if result.key_segments:
-                # save_analysis set the primary key; this derives secondary
-                track = self.db.save_key_segments(result.track_id, result.key_segments)
         self.tracks_upserted.emit([track])
+
+    # -- on-demand key-change detection --------------------------------------
 
     def key_segments(self, track_id: int) -> list:
         return self.db.load_key_segments(track_id)
+
+    def detect_key_changes(self, track_ids: list[int]) -> None:
+        """Run the windowed key-segment pass on demand (it is NOT run during
+        normal analysis - too unreliable to auto-flag, see the analyzer)."""
+        from keydup.analysis.keychange import KeyChangeWorker
+
+        jobs = [(t.id, t.path) for t in (self.db.get_track(i) for i in track_ids)]
+        if not jobs:
+            return
+        worker = KeyChangeWorker(jobs)
+        worker.signals.result.connect(self._on_key_changes)
+        worker.signals.finished.connect(self.key_changes_finished)
+        worker.signals.failed.connect(self.key_changes_failed)
+        self.key_changes_started.emit(len(jobs))
+        self.pool.start(worker)
+
+    def _on_key_changes(self, track_id: int, segments: list) -> None:
+        if segments and len({s["key"] for s in segments}) > 1:
+            track = self.db.save_key_segments(track_id, segments)
+        else:
+            track = self.db.clear_key_segments(track_id)  # single key: clear any prior
+        self.tracks_upserted.emit([track])
 
     def _on_analysis_finished(self) -> None:
         if self._analysis is not None:
