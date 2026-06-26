@@ -81,5 +81,5 @@ if sys.platform == "darwin":
         coll,
         name="key'd up.app",
         bundle_identifier="dev.keydup.keydup",
-        version="0.1.0",
+        version="0.2.0",
     )
