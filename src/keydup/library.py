@@ -3,6 +3,8 @@ database, and the UI. Owns all SQLite writes."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from PySide6.QtCore import QObject, QThreadPool, Signal
 
 from keydup.db import Database
@@ -42,17 +44,23 @@ class LibraryService(QObject):
         # Tracks added during THIS run. In-memory by design: it dies with
         # the process, which is exactly "removed after the project closes".
         self.session_new_ids: set[int] = set()
-        # folder_id -> (kind, name): tag to apply once the folder finishes
-        # its first scan (from "add folder as genre/set")
-        self._pending_auto_tag: dict[int, tuple[str, str]] = {}
+        # folder_id -> (auto_tag, tag_ids): tags to apply once the folder
+        # finishes scanning. auto_tag (kind, name) comes from "add folder as
+        # genre/set" and is created on completion, not up front, so a failed
+        # scan leaves no empty tag behind. tag_ids are existing tags.
+        self._pending_tags: dict[
+            int, tuple[tuple[str, str] | None, tuple[int, ...]]
+        ] = {}
 
     # -- scanning ----------------------------------------------------------
 
     def add_folder(self, path: str,
-                   auto_tag: tuple[str, str] | None = None) -> Folder:
+                   auto_tag: tuple[str, str] | None = None,
+                   tag_ids: Iterable[int] = ()) -> Folder:
         folder = self.db.add_folder(path)
-        if auto_tag is not None:
-            self._pending_auto_tag[folder.id] = auto_tag
+        tag_ids = tuple(tag_ids)
+        if auto_tag is not None or tag_ids:
+            self._pending_tags[folder.id] = (auto_tag, tag_ids)
         self.scan_folder(folder)
         return folder
 
@@ -72,14 +80,20 @@ class LibraryService(QObject):
         for folder in self.db.list_folders():
             self.scan_folder(folder)
 
-    def add_files(self, paths: list[str]) -> list[Track]:
+    def add_files(self, paths: list[str],
+                  tag_ids: Iterable[int] = ()) -> list[Track]:
         """Add individual audio files (e.g. dropped from a file manager).
         Their parent directories are registered as folders so the rows
-        have a home and a later Rescan can pick up siblings."""
+        have a home and a later Rescan can pick up siblings.
+
+        tag_ids are assigned to every dropped file, including ones already
+        in the library: re-dropping a known track onto an active tag filter
+        is how you file it under that genre/set."""
         from pathlib import Path
 
         from keydup.analysis.scanner import read_stub
 
+        tag_ids = tuple(tag_ids)
         changed: list[Track] = []
         by_parent: dict[str, list[Path]] = {}
         for p in paths:
@@ -95,7 +109,9 @@ class LibraryService(QObject):
                 track, change = self.db.upsert_scanned(folder.id, stub)
                 if change == "new":
                     self.session_new_ids.add(track.id)
-                if change != "unchanged":
+                for tag_id in tag_ids:
+                    track = self.db.assign_tag(track.id, tag_id)
+                if change != "unchanged" or tag_ids:
                     changed.append(track)
         if changed:
             self.tracks_upserted.emit(changed)
@@ -124,7 +140,7 @@ class LibraryService(QObject):
             self.tracks_removed_from_disk.emit(gone)
         self.db.touch_folder_scanned(folder_id)
         self._active_scans.pop(folder_id, None)
-        self._apply_auto_tag(folder_id)
+        self._apply_pending_tags(folder_id)
         pending = len(self.db.pending_track_ids())
         self.scan_finished.emit(
             f"Scan complete - {len(found_paths)} files, {pending} awaiting analysis"
@@ -132,18 +148,25 @@ class LibraryService(QObject):
         if self.auto_analyze and not self._active_scans:
             self.start_analysis()
 
-    def _apply_auto_tag(self, folder_id: int) -> None:
-        pending = self._pending_auto_tag.pop(folder_id, None)
+    def _apply_pending_tags(self, folder_id: int) -> None:
+        pending = self._pending_tags.pop(folder_id, None)
         if pending is None:
             return
-        kind, name = pending
-        tag = self.db.create_tag(name, kind)
+        auto_tag, tag_ids = pending
+        ids = list(tag_ids)
+        if auto_tag is not None:
+            kind, name = auto_tag
+            ids.append(self.db.create_tag(name, kind).id)
+            self.tags_changed.emit()
+        if not ids:
+            return
         # path-ordered so a 'set' gets a sensible initial track order
-        changed = [self.db.assign_tag(tid, tag.id)
-                   for tid in self.db.folder_track_ids(folder_id)]
-        self.tags_changed.emit()
+        changed: dict[int, Track] = {}
+        for tid in self.db.folder_track_ids(folder_id):
+            for tag_id in ids:
+                changed[tid] = self.db.assign_tag(tid, tag_id)
         if changed:
-            self.tracks_upserted.emit(changed)
+            self.tracks_upserted.emit(list(changed.values()))
 
     def _on_scan_failed(self, folder_id: int, message: str) -> None:
         self._active_scans.pop(folder_id, None)

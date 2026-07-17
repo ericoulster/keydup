@@ -429,15 +429,20 @@ class MainWindow(QMainWindow):
         dirs = [p for p in paths if Path(p).is_dir()]
         files = [p for p in paths
                  if Path(p).is_file() and Path(p).suffix.lower() in AUDIO_EXTENSIONS]
+        # whatever is checked in the tag panel is the filter you are looking
+        # at, so a drop files itself under it - including already-known tracks
+        tag_ids = self.tag_panel.checked_tag_ids()
         for d in dirs:
-            self.library.add_folder(d)
+            self.library.add_folder(d, tag_ids=tag_ids)
         if files:
-            self.library.add_files(files)
+            self.library.add_files(files, tag_ids=tag_ids)
         n = len(dirs) + len(files)
         if n:
-            self.statusBar().showMessage(
-                f"Importing {len(files)} file(s), {len(dirs)} folder(s)…", 4000
-            )
+            message = f"Importing {len(files)} file(s), {len(dirs)} folder(s)…"
+            names = [t.name for t in self.library.list_tags() if t.id in tag_ids]
+            if names:
+                message += f" Tagging: {', '.join(sorted(names))}"
+            self.statusBar().showMessage(message, 4000)
         elif paths:
             self.statusBar().showMessage("No audio files in the drop", 4000)
 
