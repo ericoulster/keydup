@@ -101,6 +101,11 @@ def main() -> int:
     app.setApplicationName("key'd up")
     app.setOrganizationName("keydup")
     app.setDesktopFileName("keydup")
+    icon = paths.icon_path()
+    if icon.exists():
+        from PySide6.QtGui import QIcon
+
+        app.setWindowIcon(QIcon(str(icon)))  # taskbar/dock + window title icon
     apply_theme(app)
 
     db = Database(paths.db_path())

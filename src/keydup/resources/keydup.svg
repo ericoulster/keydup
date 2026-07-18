@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2f45"/>
+      <stop offset="1" stop-color="#15171f"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="26" fill="url(#bg)"/>
+  <!-- musical note -->
+  <g fill="url(#accent)">
+    <rect x="70" y="30" width="8" height="52" rx="4"/>
+    <path d="M70 30 L98 24 L98 40 L78 45 Z"/>
+    <ellipse cx="62" cy="84" rx="15" ry="11"/>
+    <ellipse cx="90" cy="78" rx="15" ry="11"/>
+  </g>
+  <!-- pitch dots (camelot nod) -->
+  <g fill="#f472b6">
+    <circle cx="34" cy="40" r="5"/>
+    <circle cx="34" cy="58" r="5"/>
+    <circle cx="34" cy="76" r="5"/>
+  </g>
+</svg>

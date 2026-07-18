@@ -32,6 +32,10 @@ def resources_dir() -> Path:
     return Path(__file__).parent / "resources"
 
 
+def icon_path() -> Path:
+    return resources_dir() / "keydup.svg"
+
+
 def keynet_model_path() -> Path:
     """Explicit path to keypipe's key-detection checkpoint (works both
     installed and inside a PyInstaller bundle)."""
