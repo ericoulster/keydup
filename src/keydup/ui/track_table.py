@@ -99,8 +99,9 @@ class TrackTableModel(QAbstractTableModel):
         if role == Qt.UserRole:
             return self._sort_value(track, col)
         if role == Qt.ToolTipRole:
-            if col == COL_STATUS and track.error:
-                return track.error
+            if col == COL_STATUS and track.status == "error":
+                # legacy rows analyzed before decode errors carried a message
+                return track.error or "analysis failed (no details recorded)"
             if col == COL_KEY and track.key_camelot and track.key_confidence is not None:
                 return self._key_tooltip(track)
             return track.path

@@ -78,7 +78,10 @@ class AnalysisController(QThread):
                     bpm_source=bpm_backend.name,
                 )
             except Exception as exc:
-                return AnalysisResult(track_id, error=str(exc))
+                # some exceptions stringify to "" (e.g. audioread's
+                # NoBackendError); never store a blank error or the row
+                # shows a warning with no explanation
+                return AnalysisResult(track_id, error=str(exc) or type(exc).__name__)
 
         total = len(self.jobs)
         done = 0

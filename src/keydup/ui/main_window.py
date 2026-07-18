@@ -303,10 +303,29 @@ class MainWindow(QMainWindow):
         source = self.proxy.mapToSource(proxy_index)
         return self.model.track_at(source.row())
 
+    def _playback_block_reason(self, track: Track) -> str | None:
+        """Why this track must not be sent to the media backend, or None.
+
+        A file that failed to decode during analysis will not play either,
+        and a corrupt/non-audio file has crashed the native backend - so we
+        refuse it with the reason rather than risk the crash."""
+        from keydup.analysis.probe import looks_like_audio
+
+        if track.status == "error":
+            detail = track.error or "the file could not be decoded"
+            return f"Can't play {track.filename}: {detail}"
+        if not looks_like_audio(track.path):
+            return f"Can't play {track.filename}: not an audio file"
+        return None
+
     def _play_index(self, proxy_index) -> None:
         track = self._track_for_proxy_row(proxy_index)
         if not os.path.exists(track.path):
             self.statusBar().showMessage(f"File missing: {track.path}", 5000)
+            return
+        reason = self._playback_block_reason(track)
+        if reason is not None:
+            self.statusBar().showMessage(reason, 6000)
             return
         self.player.play_track(track)
         self.player.waveform.set_loading()
