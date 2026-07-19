@@ -1,6 +1,6 @@
 [project]
 name = "keydup"
-version = "0.2.0"
+version = "0.2.1"
 description = "key'd up - DJ library manager with key/BPM analysis, built on keypipe"
 requires-python = ">=3.12"
 dependencies = [
